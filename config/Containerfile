@@ -1,0 +1,57 @@
+FROM fedora:43
+
+RUN dnf install -y \
+git \
+curl \
+wget \
+nodejs \
+npm \
+python3 \
+python3-pip \
+golang \
+gopls \
+gcc \
+gcc-c++ \
+make \
+openssh-clients \
+ripgrep \
+fd-find \
+tmux \
+htop \
+&& dnf clean all
+
+# Node ecosystem (must stay root: global prefix is /usr/local/lib/node_modules)
+RUN npm install -g \
+typescript \
+ts-node \
+pnpm \
+yarn \
+npm-check-updates \
+eslint \
+prettier \
+vite \
+@anthropic-ai/claude-code
+
+# Python ecosystem
+RUN pip install \
+fastapi \
+uvicorn \
+httpx \
+anthropic \
+poetry \
+ruff \
+black
+
+
+RUN useradd -m dev
+
+USER dev
+WORKDIR /workspace
+
+# Global npm install lives on read-only layers; podman run also uses --read-only. Self-update cannot succeed.
+ENV DISABLE_AUTOUPDATER=1
+
+ENV PATH="/home/dev/.local/bin:$PATH"
+
+# Go tooling (as dev → installs under ~/.local/go/bin via GOPATH defaults)
+RUN go install github.com/go-delve/delve/cmd/dlv@latest

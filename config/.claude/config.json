@@ -1,0 +1,7 @@
+{
+  "apiKey": "",
+  "defaultModel": "claude-3-opus",
+  "projects": {
+    "default": "/workspace"
+  }
+}

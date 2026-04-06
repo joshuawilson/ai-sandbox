@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>AI Sandbox</title>
+</head>
+<body>
+  <h1>AI Sandbox</h1>
+
+  <p>Control endpoints require <code>Authorization: Bearer &lt;token&gt;</code> matching <code>AI_SANDBOX_DASHBOARD_TOKEN</code>.</p>
+
+  <label for="token">Token</label>
+  <input id="token" type="password" autocomplete="off" placeholder="dashboard token"/>
+
+  <input id="project" placeholder="project name"/>
+
+  <button type="button" onclick="start()">Start</button>
+  <button type="button" onclick="stop()">Stop</button>
+
+  <pre id="out"></pre>
+
+  <script>
+    function authHeaders() {
+      const t = document.getElementById("token").value;
+      const h = { "Content-Type": "application/json" };
+      if (t) h["Authorization"] = "Bearer " + t;
+      return h;
+    }
+
+    function start() {
+      const p = document.getElementById("project").value;
+      fetch("/start/" + encodeURIComponent(p), { method: "POST", headers: authHeaders() })
+        .then((r) => r.text())
+        .then((t) => { document.getElementById("out").textContent = t; });
+    }
+
+    function stop() {
+      const p = document.getElementById("project").value;
+      fetch("/stop/" + encodeURIComponent(p), { method: "POST", headers: authHeaders() })
+        .then((r) => r.text())
+        .then((t) => { document.getElementById("out").textContent = t; });
+    }
+  </script>
+</body>
+</html>

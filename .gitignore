@@ -1,0 +1,36 @@
+# secrets/ — ignore by default; un-ignore only committed examples, scripts, and ssh/.gitkeep
+secrets/*
+!secrets/*.example
+!secrets/gen-ssh-key.sh
+!secrets/ssh/
+secrets/ssh/*
+!secrets/ssh/.gitkeep
+
+# Guest CIFS credentials (copy from config/cifs.env.example; never commit real values)
+config/cifs.env
+
+# Generated kickstart (hashed VM password, sandbox SSH pubkey); regenerate with host/generate-ks-fedora.sh
+ks.cfg
+
+# Per-machine VM sizing (copy from host/vm-host.env.example or run host/configure-vm-host.sh)
+host/vm-host.env
+
+# VM disk images when placed at repo root (large blobs)
+/*.qcow2
+/*.vhdx
+
+# Local environment files at repo root (not config/container.env — different name)
+/.env
+/.env.local
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Do not commit host-backed workspace/ (repos, local files)
+workspace/*
+# Host-backed fallback when secrets/ virtiofs is read-only from the VM
+workspace/.ai-sandbox-private/
+
+# Virtual machines
+vm
