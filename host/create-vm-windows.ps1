@@ -98,9 +98,14 @@ if (-not $SkipSmbShare) {
                 Write-Host "Remove with: Remove-SmbShare -Name '$shareName' -Force"
             }
         } else {
-            Write-Host "Creating SMB share: \\$env:COMPUTERNAME\$shareName -> $Base"
-            New-SmbShare -Name $shareName -Path $Base -FullAccess "$env:USERDOMAIN\$env:USERNAME" -ErrorAction Stop
-            Write-Host "SMB share created successfully"
+            Write-Host "Creating SMB share with guest access: \\$env:COMPUTERNAME\$shareName -> $Base"
+            # Create share with Everyone access (local network, Hyper-V VM on same machine)
+            New-SmbShare -Name $shareName -Path $Base -ReadAccess "Everyone" -ErrorAction Stop
+
+            # Grant full access to current user
+            Grant-SmbShareAccess -Name $shareName -AccountName "$env:USERDOMAIN\$env:USERNAME" -AccessRight Full -Force -ErrorAction SilentlyContinue
+
+            Write-Host "SMB share created successfully (no password required from VM)"
         }
         Write-Host "Guest will auto-mount via CIFS: //$env:COMPUTERNAME/ai-sandbox"
     } catch {

@@ -63,20 +63,15 @@ $SshKey = (Get-Content $PubPath -Raw).Trim()
 $OwnerUid = $env:AI_SANDBOX_OWNER_UID
 if ([string]::IsNullOrWhiteSpace($OwnerUid)) { $OwnerUid = "1000" }
 
-# CIFS/SMB configuration for Windows host
+# CIFS/SMB configuration for Windows host (guest access, no password)
 $CifsUrl = "//$(hostname)/ai-sandbox"
-$SmbUsername = $env:USERNAME
-# For SMB password, use the VM password if not specified
-$SmbPassword = $VM_PASSWORD
 
 $Content = [System.IO.File]::ReadAllText($Template)
 $Content = $Content.Replace("__PASSWORD_HASH__", $Hash)
 $Content = $Content.Replace("__SSH_KEY__", $SshKey)
 $Content = $Content.Replace("__SANDBOX_OWNER_UID__", $OwnerUid)
 $Content = $Content.Replace("__CIFS_URL__", $CifsUrl)
-$Content = $Content.Replace("__SMB_USERNAME__", $SmbUsername)
-$Content = $Content.Replace("__SMB_PASSWORD__", $SmbPassword)
 [System.IO.File]::WriteAllText($Output, $Content)
 
 Write-Host "ks.cfg written: $Output"
-Write-Host "SMB share configured: $CifsUrl"
+Write-Host "SMB share configured: $CifsUrl (guest access, no password required)"
