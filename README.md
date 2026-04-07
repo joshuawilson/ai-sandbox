@@ -188,7 +188,19 @@ Files created:
    - **GitHub:** Settings → SSH and GPG keys → New SSH key
    - **GitLab:** Preferences → SSH Keys → Add new key
 
-### Step 5: Create the VM
+### Step 5: Install ISO Creation Tool (One-Time Setup)
+
+For automated kickstart, you need a tool to create the kickstart ISO. Run this **once** in elevated PowerShell:
+
+```powershell
+.\host\install-adk-windows.ps1
+```
+
+This automatically downloads and installs Windows ADK Deployment Tools (~500 MB), which includes `oscdimg.exe` for ISO creation.
+
+**Skip this if:** You prefer manual kickstart (see Alternative below).
+
+### Step 6: Create the VM
 
 ```powershell
 .\host\create-vm-windows.ps1
@@ -198,7 +210,7 @@ This script will:
 - Download the Fedora Workstation Live ISO (~2-3 GB)
 - Create a virtual disk
 - Generate kickstart configuration with CIFS/SMB settings (`ks.cfg`)
-- **Create a kickstart ISO for automated installation** (if Git for Windows or Windows ADK is installed)
+- **Create a kickstart ISO for automated installation** (if Windows ADK is installed)
 - **Create SMB share** `\\COMPUTERNAME\ai-sandbox` (automatic, required for guest filesystem access)
 - Create and start the Hyper-V VM
 
@@ -206,12 +218,39 @@ The script automatically creates a small ISO with the kickstart file (labeled `O
 
 The SMB share allows the guest VM to access your `config/`, `secrets/`, and `workspace/` directories. This is created automatically (similar to how Linux uses virtiofs).
 
+**Alternative - Manual Kickstart (No ADK Required):**
+
+If you skipped Step 5 or the kickstart ISO creation failed, use HTTP kickstart:
+
+1. **In PowerShell terminal 1** (keep running):
+   ```powershell
+   .\tools\serve-kickstart.ps1
+   ```
+
+2. **Get your Windows IP address:**
+   ```powershell
+   ipconfig | Select-String "IPv4"
+   # Note the IPv4 Address, e.g., 192.168.1.100
+   ```
+
+3. **In the Hyper-V VM console** when Fedora boots:
+   - Press `e` (or `Tab`) to edit boot options
+   - Find the line starting with `linuxefi` or `linux`
+   - Add to the end: `inst.ks=http://YOUR-IP:8000/ks.cfg`
+   - Example: `inst.ks=http://192.168.1.100:8000/ks.cfg`
+   - Press `Ctrl+X` or `F10` to boot
+
+4. **Windows Firewall:** Allow port 8000 if prompted, or run:
+   ```powershell
+   New-NetFirewallRule -DisplayName "ai-sandbox-kickstart" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+   ```
+
 **Skip SMB share** (advanced, not recommended):
 ```powershell
 .\host\create-vm-windows.ps1 -SkipSmbShare
 ```
 
-### Step 6: Installation
+### Step 7: Installation
 
 **Automated (if kickstart ISO was created):**
 
@@ -227,52 +266,7 @@ Just wait for it to complete (~30-45 minutes total)! Username is `ai`, password 
 
 You can watch progress in Hyper-V Manager. The first boot will show systemd services running - this is normal.
 
-**Manual Kickstart (if ISO creation failed):**
-
-If automated kickstart ISO creation failed, use HTTP kickstart:
-
-1. **In a separate PowerShell window** (does not need to be elevated), start the kickstart server:
-   ```powershell
-   cd $env:USERPROFILE\ai-sandbox
-   .\tools\serve-kickstart.ps1
-   ```
-
-2. **Find your Windows PC's LAN IP address:**
-   ```powershell
-   ipconfig
-   # Look for IPv4 Address under your active network adapter
-   # Example: 192.168.1.100
-   ```
-
-3. **Allow firewall access** (if prompted, or manually):
-   ```powershell
-   # Run in elevated PowerShell:
-   New-NetFirewallRule -DisplayName "ai-sandbox-kickstart" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
-   ```
-
-4. **In the Hyper-V VM console** (Anaconda boot screen):
-   - Press `Tab` or `E` to edit boot options
-   - Add to the boot line:
-     ```
-     inst.ks=http://<YOUR-WINDOWS-IP>:8000/ks.cfg
-     ```
-     Example: `inst.ks=http://192.168.1.100:8000/ks.cfg`
-   - Press `Enter` to boot
-
-5. Wait for the installation to complete (~15-30 minutes). The VM will automatically reboot into the Fedora desktop.
-
-**Alternative - Manual Installation:**
-
-If kickstart doesn't work, install Fedora manually:
-1. Follow the graphical installer
-2. Create a user named `ai` with the password from `secrets\vm-password.env`
-3. After installation, in the VM terminal:
-   ```bash
-   sudo ~/ai-sandbox/config/ensure-sandbox-mounts.sh ai
-   ~/ai-sandbox/config/install-inside-vm.sh
-   ```
-
-### Step 7: Verify Guest Provisioning
+### Step 8: Verify Guest Provisioning
 
 After the VM reboots, log in as user `ai` and verify the first-boot provisioning:
 
@@ -293,7 +287,7 @@ Successful provisioning installs:
 - Claude Code CLI
 - Firewall rules
 
-### Step 8: Configure Claude Code (in Guest)
+### Step 9: Configure Claude Code (in Guest)
 
 Inside the Fedora VM:
 
@@ -307,7 +301,7 @@ This sets up Claude Code authentication. Place your API credentials on the **hos
 
 See [spec/how/runtime.md](spec/how/runtime.md) for credential format details.
 
-### Step 9: Start Your First Project
+### Step 10: Start Your First Project
 
 Inside the Fedora VM:
 
@@ -377,14 +371,15 @@ Set-ExecutionPolicy -Scope Process Bypass
 - Check `/etc/ai-sandbox/cifs.env` and `/etc/ai-sandbox/smbcredentials` in guest
 
 **Kickstart ISO not created:**
-- Install Git for Windows (includes `genisoimage`): https://git-scm.com/
-- Or install Windows ADK for `oscdimg`: https://docs.microsoft.com/windows-hardware/get-started/adk-install
-- Fallback to manual HTTP kickstart: `.\tools\serve-kickstart.ps1`
+- Run: `.\host\install-adk-windows.ps1` (automated installation)
+- Or manually install Windows ADK: https://learn.microsoft.com/windows-hardware/get-started/adk-install
+- Fallback to manual HTTP kickstart: see Step 6 Alternative above
 
-**Kickstart connection refused (HTTP method):**
+**Manual kickstart connection refused:**
 - Verify firewall allows TCP 8000: `New-NetFirewallRule -DisplayName "ai-sandbox-ks" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow`
-- Use correct Windows LAN IP (from `ipconfig`)
+- Use correct Windows LAN IP (from `ipconfig | Select-String "IPv4"`)
 - Ensure kickstart server is running: `.\tools\serve-kickstart.ps1`
+- Verify URL format: `inst.ks=http://192.168.1.100:8000/ks.cfg` (use your actual IP)
 
 **Boot loader did not load an operating system:**
 This happens if the VM boot order isn't set correctly. Fix it with PowerShell (elevated):

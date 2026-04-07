@@ -30,4 +30,10 @@ else
   virsh -c "$URI" start "$DOMAIN"
   echo "Started VM '$DOMAIN'."
 fi
-echo "Log in to the guest, then:  ~/ai-sandbox/config/start-day.sh"
+
+if command -v virt-viewer >/dev/null 2>&1; then
+  echo "Opening SPICE viewer..."
+  virt-viewer -c "$URI" "$DOMAIN" &
+else
+  echo "virt-viewer not found; connect manually (virt-manager, SSH, etc.)."
+fi

@@ -90,35 +90,18 @@ try {
             $mkisofsExe = Join-Path $portableDir "mkisofs.exe"
 
             if (-not (Test-Path $mkisofsExe)) {
-                try {
-                    New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
-
-                    # Download from cdrtools (portable version)
-                    $url = "https://github.com/Smile-SA/cdrtools/releases/download/3.02a09/mkisofs.exe"
-                    Write-Host "Downloading mkisofs.exe from GitHub..."
-
-                    # Use TLS 1.2
-                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-                    $wc = New-Object System.Net.WebClient
-                    $wc.DownloadFile($url, $mkisofsExe)
-
-                    Write-Host "Downloaded mkisofs.exe to $portableDir" -ForegroundColor Green
-                } catch {
-                    Write-Warning "Failed to download portable mkisofs: $_"
-                    Write-Host ""
-                    Write-Host "SOLUTION: Install one of these ISO creation tools:" -ForegroundColor Yellow
-                    Write-Host "  1. CDRTools (easiest): Download mkisofs.exe and place in: $portableDir"
-                    Write-Host "     https://github.com/Smile-SA/cdrtools/releases"
-                    Write-Host "  2. Windows ADK (official): https://docs.microsoft.com/windows-hardware/get-started/adk-install"
-                    Write-Host "  3. ImgBurn (GUI tool): https://www.imgburn.com/"
-                    Write-Host ""
-                    Write-Host "OR use manual kickstart:" -ForegroundColor Cyan
-                    Write-Host "  1. Run: tools\serve-kickstart.ps1"
-                    Write-Host "  2. At VM boot, press Tab and add: inst.ks=http://<your-ip>:8000/ks.cfg"
-                    Write-Host ""
-                    throw "No ISO creation tool available"
-                }
+                Write-Warning "No portable mkisofs.exe download available (mirrors offline)."
+                Write-Host ""
+                Write-Host "SOLUTION 1 - Install Windows ADK (Recommended):" -ForegroundColor Yellow
+                Write-Host "  Run: .\host\install-adk-windows.ps1"
+                Write-Host "  This will automatically download and install oscdimg.exe"
+                Write-Host ""
+                Write-Host "SOLUTION 2 - Use manual kickstart (Works immediately):" -ForegroundColor Cyan
+                Write-Host "  1. Run: tools\serve-kickstart.ps1"
+                Write-Host "  2. At VM boot, press Tab/e and add: inst.ks=http://<your-ip>:8000/ks.cfg"
+                Write-Host "  3. Find your IP with: ipconfig"
+                Write-Host ""
+                throw "No ISO creation tool available"
             }
 
             if (Test-Path $mkisofsExe) {
