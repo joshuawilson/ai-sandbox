@@ -98,14 +98,21 @@ if (-not $SkipSmbShare) {
                 Write-Host "Remove with: Remove-SmbShare -Name '$shareName' -Force"
             }
         } else {
-            Write-Host "Creating SMB share with guest access: \\$env:COMPUTERNAME\$shareName -> $Base"
-            # Create share with Everyone access (local network, Hyper-V VM on same machine)
-            New-SmbShare -Name $shareName -Path $Base -ReadAccess "Everyone" -ErrorAction Stop
+            Write-Host "Creating SMB share: \\$env:COMPUTERNAME\$shareName -> $Base"
 
-            # Grant full access to current user
-            Grant-SmbShareAccess -Name $shareName -AccountName "$env:USERDOMAIN\$env:USERNAME" -AccessRight Full -Force -ErrorAction SilentlyContinue
-
-            Write-Host "SMB share created successfully (no password required from VM)"
+            # Check if we're using guest or authenticated access
+            $SmbPasswordFile = Join-Path $Base "secrets\smb-password.env"
+            if (Test-Path $SmbPasswordFile) {
+                # Authenticated access - only grant access to current user
+                New-SmbShare -Name $shareName -Path $Base -FullAccess "$env:USERDOMAIN\$env:USERNAME" -Description "AI Sandbox (authenticated)" -ErrorAction Stop
+                Write-Host "SMB share created (authenticated access as $env:USERNAME)"
+            } else {
+                # Guest access - grant Everyone read access
+                New-SmbShare -Name $shareName -Path $Base -ReadAccess "Everyone" -Description "AI Sandbox (guest)" -ErrorAction Stop
+                Grant-SmbShareAccess -Name $shareName -AccountName "$env:USERDOMAIN\$env:USERNAME" -AccessRight Full -Force -ErrorAction SilentlyContinue
+                Write-Host "SMB share created (guest access - may require AllowInsecureGuestAuth)"
+                Write-Host "For better security, run: .\host\write-smb-password-env.ps1"
+            }
         }
         Write-Host "Guest will auto-mount via CIFS: //$env:COMPUTERNAME/ai-sandbox"
     } catch {

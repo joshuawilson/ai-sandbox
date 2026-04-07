@@ -63,15 +63,53 @@ $SshKey = (Get-Content $PubPath -Raw).Trim()
 $OwnerUid = $env:AI_SANDBOX_OWNER_UID
 if ([string]::IsNullOrWhiteSpace($OwnerUid)) { $OwnerUid = "1000" }
 
-# CIFS/SMB configuration for Windows host (guest access, no password)
+# CIFS/SMB configuration for Windows host
 $CifsUrl = "//$(hostname)/ai-sandbox"
+$SmbUsername = $env:USERNAME
+$SmbPassword = ""
+$useGuest = $false
+
+# Check if SMB password file exists, otherwise fall back to guest
+$SmbPasswordFile = Join-Path $Base "secrets\smb-password.env"
+if (Test-Path $SmbPasswordFile) {
+    Get-Content $SmbPasswordFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -match '^\s*SMB_PASSWORD\s*=\s*(.+)\s*$') {
+            $val = $Matches[1].Trim()
+            if (($val.StartsWith("'") -and $val.EndsWith("'")) -or ($val.StartsWith('"') -and $val.EndsWith('"'))) {
+                $val = $val.Substring(1, $val.Length - 2)
+            }
+            $SmbPassword = $val
+        }
+    }
+    Write-Host "Using SMB credentials from secrets\smb-password.env"
+} else {
+    Write-Host "No secrets\smb-password.env found - using guest access"
+    Write-Host "To use credentials instead, run: .\host\write-smb-password-env.ps1"
+    $useGuest = $true
+}
 
 $Content = [System.IO.File]::ReadAllText($Template)
 $Content = $Content.Replace("__PASSWORD_HASH__", $Hash)
 $Content = $Content.Replace("__SSH_KEY__", $SshKey)
 $Content = $Content.Replace("__SANDBOX_OWNER_UID__", $OwnerUid)
 $Content = $Content.Replace("__CIFS_URL__", $CifsUrl)
+
+if ($useGuest) {
+    $Content = $Content.Replace("__SMB_USERNAME__", "")
+    $Content = $Content.Replace("__SMB_PASSWORD__", "")
+    $Content = $Content.Replace("CIFS_GUEST=1", "CIFS_GUEST=1")
+} else {
+    $Content = $Content.Replace("__SMB_USERNAME__", $SmbUsername)
+    $Content = $Content.Replace("__SMB_PASSWORD__", $SmbPassword)
+    $Content = $Content -replace "CIFS_GUEST=1", "CIFS_CREDENTIALS=/etc/ai-sandbox/smbcredentials"
+}
+
 [System.IO.File]::WriteAllText($Output, $Content)
 
 Write-Host "ks.cfg written: $Output"
-Write-Host "SMB share configured: $CifsUrl (guest access, no password required)"
+if ($useGuest) {
+    Write-Host "SMB share configured: $CifsUrl (guest access)"
+} else {
+    Write-Host "SMB share configured: $CifsUrl (authenticated as $SmbUsername)"
+}
