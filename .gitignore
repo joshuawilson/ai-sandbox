@@ -19,6 +19,9 @@ host/vm-host.env
 /*.qcow2
 /*.vhdx
 
+# Downloaded portable tools for Windows
+tools/mkisofs/
+
 # Local environment files at repo root (not config/container.env — different name)
 /.env
 /.env.local

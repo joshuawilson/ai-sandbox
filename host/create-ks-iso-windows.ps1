@@ -50,18 +50,28 @@ try {
             throw "oscdimg failed with exit code $LASTEXITCODE"
         }
     } else {
-        # Try mkisofs/genisoimage from Git for Windows
+        # Try mkisofs/genisoimage from Git for Windows or PATH
         $mkisofs = $null
-        $gitPaths = @(
-            "${env:ProgramFiles}\Git\usr\bin\genisoimage.exe",
-            "${env:ProgramFiles(x86)}\Git\usr\bin\genisoimage.exe",
-            "${env:ProgramFiles}\Git\usr\bin\mkisofs.exe",
-            "${env:ProgramFiles(x86)}\Git\usr\bin\mkisofs.exe"
-        )
-        foreach ($path in $gitPaths) {
-            if (Test-Path $path) {
-                $mkisofs = $path
-                break
+
+        # Check if it's in PATH first
+        $mkisofs = Get-Command mkisofs -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+        if (-not $mkisofs) {
+            $mkisofs = Get-Command genisoimage -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+        }
+
+        # Check Git for Windows locations
+        if (-not $mkisofs) {
+            $gitPaths = @(
+                "${env:ProgramFiles}\Git\usr\bin\genisoimage.exe",
+                "${env:ProgramFiles(x86)}\Git\usr\bin\genisoimage.exe",
+                "${env:ProgramFiles}\Git\usr\bin\mkisofs.exe",
+                "${env:ProgramFiles(x86)}\Git\usr\bin\mkisofs.exe"
+            )
+            foreach ($path in $gitPaths) {
+                if (Test-Path $path) {
+                    $mkisofs = $path
+                    break
+                }
             }
         }
 
@@ -73,13 +83,54 @@ try {
                 throw "$(Split-Path -Leaf $mkisofs) failed with exit code $LASTEXITCODE"
             }
         } else {
-            Write-Warning "Neither oscdimg (Windows ADK) nor genisoimage/mkisofs (Git) found."
-            Write-Host ""
-            Write-Host "Install one of:"
-            Write-Host "  - Windows ADK: https://docs.microsoft.com/windows-hardware/get-started/adk-install"
-            Write-Host "  - Git for Windows usually includes genisoimage"
-            Write-Host "  - Or use manual kickstart: run tools\serve-kickstart.ps1 and type inst.ks=http://... at boot"
-            throw "No ISO creation tool available"
+            # Try to download portable mkisofs
+            Write-Host "No ISO creation tool found locally. Attempting to download portable mkisofs..." -ForegroundColor Yellow
+
+            $portableDir = Join-Path $Base "tools\mkisofs"
+            $mkisofsExe = Join-Path $portableDir "mkisofs.exe"
+
+            if (-not (Test-Path $mkisofsExe)) {
+                try {
+                    New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+
+                    # Download from cdrtools (portable version)
+                    $url = "https://github.com/Smile-SA/cdrtools/releases/download/3.02a09/mkisofs.exe"
+                    Write-Host "Downloading mkisofs.exe from GitHub..."
+
+                    # Use TLS 1.2
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+                    $wc = New-Object System.Net.WebClient
+                    $wc.DownloadFile($url, $mkisofsExe)
+
+                    Write-Host "Downloaded mkisofs.exe to $portableDir" -ForegroundColor Green
+                } catch {
+                    Write-Warning "Failed to download portable mkisofs: $_"
+                    Write-Host ""
+                    Write-Host "SOLUTION: Install one of these ISO creation tools:" -ForegroundColor Yellow
+                    Write-Host "  1. CDRTools (easiest): Download mkisofs.exe and place in: $portableDir"
+                    Write-Host "     https://github.com/Smile-SA/cdrtools/releases"
+                    Write-Host "  2. Windows ADK (official): https://docs.microsoft.com/windows-hardware/get-started/adk-install"
+                    Write-Host "  3. ImgBurn (GUI tool): https://www.imgburn.com/"
+                    Write-Host ""
+                    Write-Host "OR use manual kickstart:" -ForegroundColor Cyan
+                    Write-Host "  1. Run: tools\serve-kickstart.ps1"
+                    Write-Host "  2. At VM boot, press Tab and add: inst.ks=http://<your-ip>:8000/ks.cfg"
+                    Write-Host ""
+                    throw "No ISO creation tool available"
+                }
+            }
+
+            if (Test-Path $mkisofsExe) {
+                Write-Host "Creating ISO using downloaded mkisofs with OEMDRV label..."
+                Write-Host "(Anaconda automatically searches OEMDRV volumes for ks.cfg)"
+                & $mkisofsExe -o $OutputISO -V "OEMDRV" -r -J $TempDir
+                if ($LASTEXITCODE -ne 0) {
+                    throw "mkisofs failed with exit code $LASTEXITCODE"
+                }
+            } else {
+                throw "No ISO creation tool available"
+            }
         }
     }
 
