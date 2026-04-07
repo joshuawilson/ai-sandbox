@@ -4,11 +4,11 @@ $ErrorActionPreference = "Stop"
 $HostDir = $PSScriptRoot
 . "$HostDir\lib\read-vm-host-env.ps1"
 $Base = Get-SandboxRepoRoot -HostScriptDirectory $HostDir
-$Template = Join-Path $Base "host\ks.template.cfg"
+$Template = Join-Path $Base "host\ks.template-windows.cfg"
 $Output = Join-Path $Base "ks.cfg"
 $EnvFile = Join-Path $Base "secrets\vm-password.env"
 
-Write-Host "Generating Kickstart (Windows)..."
+Write-Host "Generating Kickstart (Windows with CIFS/SMB)..."
 
 if (-not (Test-Path $EnvFile)) {
     Write-Error "Missing $EnvFile (create VM_PASSWORD=... in bash env format)."
@@ -59,14 +59,24 @@ if (-not (Test-Path $PubPath)) {
 $SshKey = (Get-Content $PubPath -Raw).Trim()
 
 # Avoid PowerShell -replace: password hashes contain $ which breaks double-quoted expansion
-# Linux guest must match secrets/ owner UID for virtiofs + mode-700 (Fedora/Mac generators use stat).
+# Linux guest must match secrets/ owner UID for SMB uid mapping.
 $OwnerUid = $env:AI_SANDBOX_OWNER_UID
 if ([string]::IsNullOrWhiteSpace($OwnerUid)) { $OwnerUid = "1000" }
+
+# CIFS/SMB configuration for Windows host
+$CifsUrl = "//$(hostname)/ai-sandbox"
+$SmbUsername = $env:USERNAME
+# For SMB password, use the VM password if not specified
+$SmbPassword = $VM_PASSWORD
 
 $Content = [System.IO.File]::ReadAllText($Template)
 $Content = $Content.Replace("__PASSWORD_HASH__", $Hash)
 $Content = $Content.Replace("__SSH_KEY__", $SshKey)
 $Content = $Content.Replace("__SANDBOX_OWNER_UID__", $OwnerUid)
+$Content = $Content.Replace("__CIFS_URL__", $CifsUrl)
+$Content = $Content.Replace("__SMB_USERNAME__", $SmbUsername)
+$Content = $Content.Replace("__SMB_PASSWORD__", $SmbPassword)
 [System.IO.File]::WriteAllText($Output, $Content)
 
 Write-Host "ks.cfg written: $Output"
+Write-Host "SMB share configured: $CifsUrl"

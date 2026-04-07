@@ -197,18 +197,39 @@ Files created:
 This script will:
 - Download the Fedora Workstation Live ISO (~2-3 GB)
 - Create a virtual disk
-- Generate kickstart configuration (`ks.cfg`)
+- Generate kickstart configuration with CIFS/SMB settings (`ks.cfg`)
+- **Create a kickstart ISO for automated installation** (if Git for Windows or Windows ADK is installed)
+- **Create SMB share** `\\COMPUTERNAME\ai-sandbox` (automatic, required for guest filesystem access)
 - Create and start the Hyper-V VM
 
-**Optional SMB sharing:**
+The script automatically creates a small ISO with the kickstart file (labeled `OEMDRV`), which Anaconda auto-detects. **Installation will proceed automatically** without manual intervention!
+
+The SMB share allows the guest VM to access your `config/`, `secrets/`, and `workspace/` directories. This is created automatically (similar to how Linux uses virtiofs).
+
+**Skip SMB share** (advanced, not recommended):
 ```powershell
-.\host\create-vm-windows.ps1 -CreateSmbShare
+.\host\create-vm-windows.ps1 -SkipSmbShare
 ```
-This creates a `\\COMPUTERNAME\ai-sandbox` SMB share for the guest.
 
-### Step 6: Install Fedora (Kickstart)
+### Step 6: Installation
 
-For automated installation via kickstart:
+**Automated (if kickstart ISO was created):**
+
+The VM will automatically:
+1. Boot from the Fedora ISO
+2. Detect the kickstart file from the attached kickstart ISO
+3. Install Fedora unattended (~15-30 minutes)
+4. Reboot into the desktop
+5. **Auto-mount the SMB share** from your Windows host
+6. **Auto-run** `config/install-inside-vm.sh` to set up Podman, Cursor, and Claude Code
+
+Just wait for it to complete (~30-45 minutes total)! Username is `ai`, password is in `secrets\vm-password.env`.
+
+You can watch progress in Hyper-V Manager. The first boot will show systemd services running - this is normal.
+
+**Manual Kickstart (if ISO creation failed):**
+
+If automated kickstart ISO creation failed, use HTTP kickstart:
 
 1. **In a separate PowerShell window** (does not need to be elevated), start the kickstart server:
    ```powershell
@@ -326,6 +347,7 @@ bash ~/ai-sandbox/config/start-day.sh
 **Git/OpenSSL not found:**
 - Install Git for Windows: https://git-scm.com/
 - Re-open PowerShell after installation
+- Git for Windows includes `genisoimage` for creating the kickstart ISO
 
 **Python not found:**
 - Install Python 3: https://python.org
@@ -342,7 +364,24 @@ Set-ExecutionPolicy -Scope Process Bypass
 - Ensure `secrets\vm-password.env` exists (run `.\host\write-vm-password-env.ps1`)
 - Verify `secrets\ssh\id_ed25519.pub` exists (run `.\setup-host.ps1` again)
 
-**Kickstart connection refused:**
+**SMB share creation failed:**
+- Windows Home edition doesn't support SMB sharing - upgrade to Pro
+- Check file sharing is enabled: Settings → Network → Advanced sharing settings
+- Ensure your user account has a password set
+- Run as Administrator
+
+**Guest can't mount SMB share:**
+- Verify SMB share exists: `Get-SmbShare -Name ai-sandbox`
+- Check Windows Firewall allows SMB (port 445)
+- Try accessing from guest: `smbclient -L //HOSTNAME -U username`
+- Check `/etc/ai-sandbox/cifs.env` and `/etc/ai-sandbox/smbcredentials` in guest
+
+**Kickstart ISO not created:**
+- Install Git for Windows (includes `genisoimage`): https://git-scm.com/
+- Or install Windows ADK for `oscdimg`: https://docs.microsoft.com/windows-hardware/get-started/adk-install
+- Fallback to manual HTTP kickstart: `.\tools\serve-kickstart.ps1`
+
+**Kickstart connection refused (HTTP method):**
 - Verify firewall allows TCP 8000: `New-NetFirewallRule -DisplayName "ai-sandbox-ks" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow`
 - Use correct Windows LAN IP (from `ipconfig`)
 - Ensure kickstart server is running: `.\tools\serve-kickstart.ps1`
