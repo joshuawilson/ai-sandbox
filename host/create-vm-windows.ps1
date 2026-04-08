@@ -128,29 +128,39 @@ Start-VM -VMName $VMName
 Write-Host "VM started."
 
 Write-Host ""
+Write-Host "=== Kickstart Installation ===" -ForegroundColor Cyan
+Write-Host ""
+
 if ($useKickstart) {
-    Write-Host "=== Automated Kickstart Installation ===" -ForegroundColor Green
-    Write-Host "Kickstart ISO attached - Fedora will install automatically!"
-    Write-Host "The VM will:"
-    Write-Host "  1. Boot from the Fedora ISO"
-    Write-Host "  2. Auto-detect ks.cfg from the kickstart ISO (OEMDRV label)"
-    Write-Host "  3. Install Fedora unattended (~15-30 minutes)"
-    Write-Host "  4. Reboot into the desktop"
-    Write-Host "  5. Auto-mount SMB share and run install-inside-vm.sh"
+    Write-Host "Kickstart ISO created and attached." -ForegroundColor Green
     Write-Host ""
-    Write-Host "Username: ai"
-    Write-Host "Password: (see secrets\vm-password.env)"
+    Write-Host "NOTE: Fedora Workstation Live ISO does not auto-detect kickstart." -ForegroundColor Yellow
+    Write-Host "You must add the boot parameter manually (one time, at first boot):" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "After installation completes, you can create a checkpoint:"
-    Write-Host "  Checkpoint-VM -Name $VMName -SnapshotName 'Clean Install'"
+    Write-Host "  IN THE VM, AT BOOT MENU:" -ForegroundColor White
+    Write-Host "    1. Press 'e' to edit boot options"
+    Write-Host "    2. Add to the end of the 'linux' line:"
+    Write-Host "       inst.ks=hd:LABEL=OEMDRV:/ks.cfg" -ForegroundColor Green
+    Write-Host "    3. Press Ctrl+X to boot"
+    Write-Host ""
+    Write-Host "  OR use HTTP kickstart (fully automatic):" -ForegroundColor White
+    Write-Host "    Run: .\host\start-kickstart-server-windows.ps1"
+    Write-Host "    (Displays IP and boot parameter automatically)"
 } else {
-    Write-Host "=== Manual Kickstart (HTTP) ===" -ForegroundColor Yellow
-    Write-Host "On this host, run:  tools\serve-kickstart.ps1"
-    Write-Host "At Anaconda boot, add:  inst.ks=http://<this-PC-LAN-IP>:8000/ks.cfg"
-    Write-Host "Open Windows Firewall for TCP 8000 if needed."
+    Write-Host "Kickstart ISO creation failed (oscdimg not available)." -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "=== Or Manual Install ==="
-    Write-Host "After Fedora is up, configure SMB or virtio-9p, then:"
-    Write-Host "  sudo ~/ai-sandbox/config/ensure-sandbox-mounts.sh ai"
-    Write-Host "  ~/ai-sandbox/config/install-inside-vm.sh"
+    Write-Host "Use HTTP kickstart instead (easier and more reliable):" -ForegroundColor Green
+    Write-Host "  Run: .\host\start-kickstart-server-windows.ps1"
+    Write-Host ""
+    Write-Host "This will display your IP and the exact boot parameter to use."
 }
+
+Write-Host ""
+Write-Host "After kickstart installation:" -ForegroundColor Cyan
+Write-Host "  - Username: ai"
+Write-Host "  - Password: (see secrets\vm-password.env)"
+Write-Host "  - SMB share will auto-mount"
+Write-Host "  - Cursor, Podman, Claude will install automatically"
+Write-Host ""
+Write-Host "Create a checkpoint after install:"
+Write-Host "  Checkpoint-VM -Name $VMName -SnapshotName 'Clean Install'"

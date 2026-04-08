@@ -21,6 +21,7 @@ function Get-VmHostEnvMerged {
         VM_DIR                = "/var/lib/libvirt/images"
         VM_LIBVIRT_NETWORK    = "default"
         VM_ISO_URL            = "https://download.fedoraproject.org/pub/fedora/linux/releases/43/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-43-1.6.iso"
+        VM_NETINSTALL_URL     = "https://download.fedoraproject.org/pub/fedora/linux/releases/43/Server/x86_64/iso/Fedora-Server-netinst-x86_64-43-1.6.iso"
         VM_HYPERV_SWITCH      = "Default Switch"
     }
 
