@@ -36,12 +36,14 @@ On Fedora, after a **new** `libvirt` group membership: **log out, log in**, then
 
 ### 2. Host: VM settings and guest password
 
-When `setup-host` finishes, run the optional wizard, or configure by hand:
+Usually done automatically by `setup-host`. If you skipped it, files are missing, or want to change settings:
 
-- **`host/configure-vm-host.sh`** (or **`.\host\configure-vm-host.ps1`** on Windows) → writes **`host/vm-host.env`** and usually **`secrets/vm-password.env`** (password for guest user **`ai`**).
-- Or copy **`host/vm-host.env.example`** → **`host/vm-host.env`** and create **`secrets/vm-password.env`** with **`host/write-vm-password-env.sh`** / **`.\host\write-vm-password-env.ps1`**.
-
-Skip the wizard during setup: **`--skip-vm-config`**, **`-SkipVmConfig`**, or **`SKIP_VM_CONFIGURE=1`**.
+- **Run configuration wizard:** `./host/configure-vm-host.sh` (or `.\host\configure-vm-host.ps1` on Windows)
+  - Creates `host/vm-host.env` (VM sizing: disk, RAM, CPUs)
+  - Creates `secrets/vm-password.env` (guest user `ai` password)
+  - **Or configure manually:**
+    - Copy `host/vm-host.env.example` → `host/vm-host.env`
+    - Run `./host/write-vm-password-env.sh` (or `.\host\write-vm-password-env.ps1`)
 
 ### 3. Host: create the VM
 

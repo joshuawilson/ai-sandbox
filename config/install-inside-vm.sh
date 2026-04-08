@@ -82,20 +82,9 @@ ripgrep \
 fd-find \
 firewalld \
 audit \
-bind-utils \
-terminator
+bind-utils
 
-#################################
-# Terminator autostart
-#################################
-mkdir -p "$HOME/.config/autostart"
-cat > "$HOME/.config/autostart/terminator.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Terminator
-Exec=terminator
-X-GNOME-Autostart-enabled=true
-EOF
+# Note: terminator is now installed via kickstart (ks.template.cfg) for immediate availability
 
 # Rootless Podman: slirp4netns is required for start-container.sh --network slirp4netns (not always a podman dep).
 # Rootless Podman: linger keeps user session services available (typical Fedora default for subuids).
