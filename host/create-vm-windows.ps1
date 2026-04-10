@@ -114,6 +114,17 @@ if (-not $SkipSmbShare) {
                 Write-Host "For better security, run: .\host\write-smb-password-env.ps1"
             }
         }
+
+        # Configure Windows Firewall for SMB
+        Write-Host "Configuring Windows Firewall for SMB..."
+        $fwRule = Get-NetFirewallRule -DisplayName "SMB ai-sandbox" -ErrorAction SilentlyContinue
+        if (-not $fwRule) {
+            New-NetFirewallRule -DisplayName "SMB ai-sandbox" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow -ErrorAction SilentlyContinue
+            Write-Host "Firewall rule created for SMB (port 445)" -ForegroundColor Green
+        } else {
+            Write-Host "Firewall rule already exists for SMB"
+        }
+
         Write-Host "Guest will auto-mount via CIFS: //$env:COMPUTERNAME/ai-sandbox"
     } catch {
         Write-Warning "SMB share creation failed: $_"
