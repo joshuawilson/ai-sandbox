@@ -2,14 +2,12 @@
 <#
   Create Hyper-V VM using Fedora netinstall ISO for TRUE automatic kickstart.
 
-  The netinstall ISO properly auto-detects OEMDRV kickstart volumes,
-  unlike the Live ISO which requires manual boot parameter entry.
+  Uses HTTP file delivery instead of SMB to avoid Windows Home authentication issues.
+  The netinstall ISO properly auto-detects OEMDRV kickstart volumes.
 
   This is the fully automatic option for Windows.
 #>
-param(
-    [switch]$SkipSmbShare
-)
+param()
 
 $ErrorActionPreference = "Stop"
 
@@ -116,56 +114,60 @@ $hdd = Get-VMHardDiskDrive -VMName $VMName
 Set-VMFirmware -VMName $VMName -BootOrder $dvd,$hdd
 Write-Host "Boot order configured: DVD (netinstall ISO) first"
 
-# Create SMB share
-if (-not $SkipSmbShare) {
-    try {
-        $shareName = "ai-sandbox"
-        $existingShare = Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue
-        if ($existingShare) {
-            Write-Host "SMB share already exists: \\$env:COMPUTERNAME\$shareName"
-        } else {
-            Write-Host "Creating SMB share: \\$env:COMPUTERNAME\$shareName"
-            $SmbPasswordFile = Join-Path $Base "secrets\smb-password.env"
-            if (Test-Path $SmbPasswordFile) {
-                New-SmbShare -Name $shareName -Path $Base -FullAccess "$env:USERDOMAIN\$env:USERNAME" -Description "AI Sandbox (authenticated)" -ErrorAction Stop
-                Write-Host "SMB share created (authenticated)"
-            } else {
-                New-SmbShare -Name $shareName -Path $Base -ReadAccess "Everyone" -Description "AI Sandbox (guest)" -ErrorAction Stop
-                Grant-SmbShareAccess -Name $shareName -AccountName "$env:USERDOMAIN\$env:USERNAME" -AccessRight Full -Force -ErrorAction SilentlyContinue
-                Write-Host "SMB share created (guest access)"
-            }
-        }
-
-        # Configure Windows Firewall for SMB
-        Write-Host "Configuring Windows Firewall for SMB..."
-        $fwRule = Get-NetFirewallRule -DisplayName "SMB ai-sandbox" -ErrorAction SilentlyContinue
-        if (-not $fwRule) {
-            New-NetFirewallRule -DisplayName "SMB ai-sandbox" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow -ErrorAction SilentlyContinue
-            Write-Host "Firewall rule created for SMB (port 445)" -ForegroundColor Green
-        } else {
-            Write-Host "Firewall rule already exists for SMB"
-        }
-
-    } catch {
-        Write-Warning "SMB share creation failed: $_"
-    }
+# Configure Windows Firewall for HTTP (port 8000)
+Write-Host "Configuring Windows Firewall for HTTP file server..."
+$fwRule = Get-NetFirewallRule -DisplayName "ai-sandbox-http" -ErrorAction SilentlyContinue
+if (-not $fwRule) {
+    New-NetFirewallRule -DisplayName "ai-sandbox-http" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -ErrorAction SilentlyContinue | Out-Null
+    Write-Host "Firewall rule created for HTTP (port 8000)" -ForegroundColor Green
+} else {
+    Write-Host "Firewall rule already exists for HTTP"
 }
+
+# Start HTTP server in background
+Write-Host ""
+Write-Host "Starting HTTP file server for VM installation..."
+$serverScript = Join-Path $Base "tools\serve-kickstart.ps1"
+
+# Start PowerShell in a new window to run the HTTP server
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Base'; & '$serverScript'" -WindowStyle Normal
+
+Write-Host "HTTP server started in separate window (keep it running!)" -ForegroundColor Green
+Start-Sleep -Seconds 2
 
 Start-VM -VMName $VMName
 Write-Host ""
-Write-Host "=== VM Started - FULLY AUTOMATIC INSTALLATION ===" -ForegroundColor Green
+Write-Host "==========================================" -ForegroundColor Green
+Write-Host "  VM STARTED - FULLY AUTOMATIC INSTALL" -ForegroundColor Green
+Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "The netinstall ISO will:" -ForegroundColor White
-Write-Host "  1. Boot and auto-detect the OEMDRV kickstart volume" -ForegroundColor Green
-Write-Host "  2. Install Fedora Workstation automatically (~20-40 minutes)" -ForegroundColor Green
-Write-Host "  3. Reboot into the desktop" -ForegroundColor Green
-Write-Host "  4. Auto-mount SMB share" -ForegroundColor Green
-Write-Host "  5. Auto-install Podman, Cursor, Claude" -ForegroundColor Green
+Write-Host "CRITICAL: HTTP server window must stay open!" -ForegroundColor Yellow -BackgroundColor Red
+Write-Host "The VM downloads files from: http://<your-ip>:8000/" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "NO MANUAL INTERVENTION NEEDED!" -ForegroundColor Green -BackgroundColor DarkGreen
+Write-Host "NEXT STEPS:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Username: ai" -ForegroundColor Cyan
-Write-Host "Password: (see secrets\vm-password.env)" -ForegroundColor Cyan
+Write-Host "1. Open Hyper-V Manager" -ForegroundColor White
+Write-Host "   (Search 'Hyper-V Manager' in Start menu)" -ForegroundColor Gray
 Write-Host ""
-Write-Host "Monitor progress in Hyper-V Manager console."
-Write-Host "Total time: ~30-50 minutes depending on network speed."
+Write-Host "2. Connect to VM '$VMName'" -ForegroundColor White
+Write-Host "   (Double-click or Right-click -> Connect)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "3. Watch automated installation:" -ForegroundColor White
+Write-Host "   - Kickstart auto-detects (~2 min)" -ForegroundColor Gray
+Write-Host "   - Fedora installs (~20-30 min)" -ForegroundColor Gray
+Write-Host "   - VM reboots" -ForegroundColor Gray
+Write-Host "   - GNOME welcome (skip through)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "4. Login:" -ForegroundColor White
+Write-Host "   - Username: ai" -ForegroundColor Cyan
+Write-Host "   - Password: (see secrets\vm-password.env)" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "5. Background setup runs automatically:" -ForegroundColor White
+Write-Host "   - Downloads config from HTTP server" -ForegroundColor Gray
+Write-Host "   - Installs Podman, Cursor, Claude (~10-20 min)" -ForegroundColor Gray
+Write-Host "   - Terminator opens when complete" -ForegroundColor Gray
+Write-Host ""
+Write-Host "TOTAL TIME: 30-50 minutes" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "You can close the HTTP server after Terminator opens." -ForegroundColor Cyan
+Write-Host ""

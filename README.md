@@ -202,13 +202,21 @@ This automatically downloads and installs Windows ADK Deployment Tools (~500 MB)
 
 **Skip this if:** You prefer manual kickstart (see Alternative below).
 
-### Step 6: Create the VM
+### Step 6: Create and Start the VM
+
+**For fully automatic installation (recommended):**
+
+```powershell
+.\host\create-vm-windows-netinstall.ps1
+```
+
+**OR for Live ISO (requires manual boot parameter):**
 
 ```powershell
 .\host\create-vm-windows.ps1
 ```
 
-This script will:
+The script will:
 - Download the Fedora Workstation Live ISO (~2-3 GB)
 - Create a virtual disk
 - Generate kickstart configuration with CIFS/SMB settings (`ks.cfg`)
@@ -252,25 +260,40 @@ If you skipped Step 5 or the kickstart ISO creation failed, use HTTP kickstart:
 .\host\create-vm-windows.ps1 -SkipSmbShare
 ```
 
-### Step 7: Installation
+### Step 7: Watch the Installation
 
-**Automated (if kickstart ISO was created):**
+**The VM is now running and installing automatically!**
 
-The VM will automatically:
-1. Boot from the Fedora ISO
-2. Detect the kickstart file from the attached kickstart ISO
-3. Install Fedora unattended (~15-30 minutes)
-4. Reboot into the desktop
-5. **Auto-mount the SMB share** from your Windows host
-6. **Auto-run** `config/install-inside-vm.sh` to set up Podman, Cursor, and Claude Code
+**Open Hyper-V Manager to watch progress:**
+1. Search for "Hyper-V Manager" in Windows Start menu
+2. Find your VM (default name: `ai-sandbox`)
+3. Right-click → Connect (or double-click)
+4. Watch the installation progress
 
-Just wait for it to complete (~30-45 minutes total)! Username is `ai`, password is in `secrets\vm-password.env`.
+**What happens automatically:**
+**Using netinstall ISO (automatic):**
+1. Netinstall boots and auto-detects kickstart (~2 minutes)
+2. Fedora installs automatically (~20-30 minutes)
+3. VM reboots into GNOME desktop (~1 minute)
+4. Skip or complete GNOME welcome screens
+5. **Login as `ai`** (password in `secrets\vm-password.env`)
+6. SMB share auto-mounts in background
+7. Podman, Cursor, and Claude Code install automatically (~10-20 minutes)
+8. Terminator terminal opens when complete
 
-You can watch progress in Hyper-V Manager. The first boot will show systemd services running - this is normal.
+**Using Live ISO (manual boot parameter required):**
+1. At boot menu, press `e` to edit
+2. Add to linux line: `inst.ks=hd:LABEL=OEMDRV:/ks.cfg`
+3. Press `Ctrl+X` to boot
+4. Then same as above
 
-### Step 8: Verify Guest Provisioning
+**Total time: 30-50 minutes (hands-off with netinstall)**
 
-After the VM reboots, log in as user `ai` and verify the first-boot provisioning:
+**Important:** Don't close the Hyper-V Manager window - this is just the console view, not the VM itself.
+
+### Step 8: Verify Installation Completed
+
+After logging in as user `ai`, verify everything installed correctly:
 
 ```bash
 # Check if provisioning completed

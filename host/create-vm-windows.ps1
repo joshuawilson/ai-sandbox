@@ -136,8 +136,13 @@ if (-not $SkipSmbShare) {
 }
 
 Start-VM -VMName $VMName
-Write-Host "VM started."
 
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  VM STARTED" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "NEXT: Open Hyper-V Manager and connect to the VM" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "=== Kickstart Installation ===" -ForegroundColor Cyan
 Write-Host ""
