@@ -42,8 +42,9 @@ if (-not $openssl) {
     Write-Error "OpenSSL not found under Git for Windows. Run install-virt-windows.ps1 first."
 }
 
-# openssl passwd -6 prints "Password:" to stderr (cosmetic prompt); redirect stderr to null
-$Hash = ($VM_PASSWORD | & $openssl passwd -6 2>$null)
+# openssl passwd -6 prints "Password:" to stderr (cosmetic prompt)
+# Use -stdin flag and suppress all error streams
+$Hash = (echo $VM_PASSWORD | & $openssl passwd -6 -stdin 2>&1 | Where-Object { $_ -notmatch '^Password:' })
 if ([string]::IsNullOrWhiteSpace($Hash)) {
     Write-Error "openssl passwd failed"
 }
