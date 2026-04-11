@@ -13,7 +13,14 @@ mkdir -p "$SANDBOX/logs"
 # virtiofs + symlinks (idempotent)
 #################################
 
-if ! mountpoint -q /mnt/host-config 2>/dev/null; then
+# Skip mounting if using HTTP delivery (Windows)
+USE_HTTP=0
+if [[ -f /etc/ai-sandbox/windows-host.env ]]; then
+  source /etc/ai-sandbox/windows-host.env
+  [[ "${USE_HTTP:-0}" == "1" ]] && USE_HTTP=1
+fi
+
+if [[ "$USE_HTTP" == "0" ]] && ! mountpoint -q /mnt/host-config 2>/dev/null; then
   sudo "$SCRIPT_DIR/ensure-sandbox-mounts.sh" "${USER}"
 fi
 
@@ -22,28 +29,40 @@ fi
 #################################
 # Bind-mounting /mnt/host-secrets/ssh into the container hits: statfs ... permission denied
 # (SELinux / virtiofs + rootless Podman). Copy once to ~/.ssh on the VM disk; container mounts that.
-SANDBOX_KEY="$SANDBOX/secrets/ssh/id_ed25519"
-SANDBOX_PUB="$SANDBOX/secrets/ssh/id_ed25519.pub"
-if [[ -r "$SANDBOX_KEY" ]]; then
-  mkdir -p "$HOME/.ssh"
-  chmod 700 "$HOME/.ssh"
-  install -m 600 "$SANDBOX_KEY" "$HOME/.ssh/id_ed25519"
-  if [[ -r "$SANDBOX_PUB" ]]; then
-    install -m 644 "$SANDBOX_PUB" "$HOME/.ssh/id_ed25519.pub"
+
+# For HTTP delivery (Windows), keys are already in ~/.ssh from kickstart
+if [[ "$USE_HTTP" == "1" ]]; then
+  if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+    echo "SSH keys already in ~/.ssh (HTTP delivery)."
+  else
+    echo "WARNING: No SSH keys in ~/.ssh - HTTP sync may have failed." >&2
+    echo "Keys are optional for basic operation but needed for git/GitHub." >&2
   fi
-  echo "Copied sandbox SSH keys to ~/.ssh (for Podman bind-mount)."
-elif [[ -e "$SANDBOX_KEY" ]]; then
-  echo "Sandbox SSH private key exists but is not readable: $SANDBOX_KEY" >&2
-  echo "On the host: chown/chmod secrets/ssh so guest user ai (UID usually 1000) can read the key." >&2
-  exit 1
-elif [[ -f "$SANDBOX_PUB" ]]; then
-  echo "Found $SANDBOX_PUB but not the private key $SANDBOX_KEY." >&2
-  echo "On the host run: ./host/install-virt-linux.sh or ./secrets/gen-ssh-key.sh — both keys must live under secrets/ssh/." >&2
-  exit 1
 else
-  echo "ERROR: No secrets/ssh/id_ed25519 on the virtiofs share — check mounts and host secrets/ssh/." >&2
-  echo "On the host run: ./host/install-virt-linux.sh (or secrets/gen-ssh-key.sh), then re-run this script." >&2
-  exit 1
+  # For virtiofs/CIFS mounts, copy from sandbox
+  SANDBOX_KEY="$SANDBOX/secrets/ssh/id_ed25519"
+  SANDBOX_PUB="$SANDBOX/secrets/ssh/id_ed25519.pub"
+  if [[ -r "$SANDBOX_KEY" ]]; then
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    install -m 600 "$SANDBOX_KEY" "$HOME/.ssh/id_ed25519"
+    if [[ -r "$SANDBOX_PUB" ]]; then
+      install -m 644 "$SANDBOX_PUB" "$HOME/.ssh/id_ed25519.pub"
+    fi
+    echo "Copied sandbox SSH keys to ~/.ssh (for Podman bind-mount)."
+  elif [[ -e "$SANDBOX_KEY" ]]; then
+    echo "Sandbox SSH private key exists but is not readable: $SANDBOX_KEY" >&2
+    echo "On the host: chown/chmod secrets/ssh so guest user ai (UID usually 1000) can read the key." >&2
+    exit 1
+  elif [[ -f "$SANDBOX_PUB" ]]; then
+    echo "Found $SANDBOX_PUB but not the private key $SANDBOX_KEY." >&2
+    echo "On the host run: ./host/install-virt-linux.sh or ./secrets/gen-ssh-key.sh — both keys must live under secrets/ssh/." >&2
+    exit 1
+  else
+    echo "ERROR: No secrets/ssh/id_ed25519 on the virtiofs share — check mounts and host secrets/ssh/." >&2
+    echo "On the host run: ./host/install-virt-linux.sh (or secrets/gen-ssh-key.sh), then re-run this script." >&2
+    exit 1
+  fi
 fi
 
 #################################
