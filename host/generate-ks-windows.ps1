@@ -42,13 +42,23 @@ if (-not $openssl) {
     Write-Error "OpenSSL not found under Git for Windows. Run install-virt-windows.ps1 first."
 }
 
-# openssl passwd -6 prints "Password:" to stderr (cosmetic prompt)
-# Use -stdin flag and suppress all error streams
-$Hash = (echo $VM_PASSWORD | & $openssl passwd -6 -stdin 2>&1 | Where-Object { $_ -notmatch '^Password:' })
-if ([string]::IsNullOrWhiteSpace($Hash)) {
-    Write-Error "openssl passwd failed"
+# Generate password hash using stdin (more reliable for special characters)
+# Create a temporary file to avoid PowerShell argument escaping issues
+$tempFile = [System.IO.Path]::GetTempFileName()
+try {
+    # Write password to temp file (UTF-8 no BOM, Unix line endings)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($tempFile, $VM_PASSWORD, $utf8NoBom)
+
+    # Pass to openssl via stdin redirect
+    $Hash = (Get-Content $tempFile -Raw | & $openssl passwd -6 -stdin 2>&1 | Where-Object { $_ -match '^\$6\$' })
+    if ([string]::IsNullOrWhiteSpace($Hash)) {
+        Write-Error "openssl passwd failed to generate hash"
+    }
+    $Hash = $Hash.Trim()
+} finally {
+    Remove-Item $tempFile -ErrorAction SilentlyContinue
 }
-$Hash = $Hash.Trim()
 
 $PubPath = Join-Path $Base "secrets\ssh\id_ed25519.pub"
 if (-not (Test-Path $PubPath)) {
@@ -78,8 +88,11 @@ $Content = $Content.Replace("__SANDBOX_OWNER_UID__", $OwnerUid)
 $Content = $Content.Replace("__WINDOWS_HOST_IP__", $WindowsIP)
 [System.IO.File]::WriteAllText($Output, $Content)
 
-Write-Host "ks.cfg written: $Output"
-Write-Host "Windows host IP: $WindowsIP (VM will download files via HTTP)"
+Write-Host "ks.cfg written: $Output" -ForegroundColor Green
+Write-Host "Password hash: $($Hash.Substring(0,20))..." -ForegroundColor Gray
+Write-Host "SSH key: $($SshKey.Substring(0,30))..." -ForegroundColor Gray
+Write-Host "Guest UID: $OwnerUid" -ForegroundColor Gray
+Write-Host "Windows host IP: $WindowsIP (VM will download files via HTTP)" -ForegroundColor Green
 Write-Host ""
 Write-Host "IMPORTANT: Keep HTTP server running during installation:"
 Write-Host "  .\tools\serve-kickstart.ps1"
