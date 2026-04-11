@@ -19,9 +19,21 @@ Get-Content $EnvFile | ForEach-Object {
     $line = $_.Trim()
     if ($line -match '^\s*VM_PASSWORD\s*=\s*(.+)\s*$') {
         $val = $Matches[1].Trim()
-        if (($val.StartsWith("'") -and $val.EndsWith("'")) -or ($val.StartsWith('"') -and $val.EndsWith('"'))) {
+
+        # Parse bash-style single-quoted string: 'value' or 'val'\''ue' for apostrophes
+        if ($val -match "^'.*'$") {
+            # Handle bash '\'' escape sequence (end quote, escaped quote, start quote)
+            # Replace '\'' with just ' then remove outer quotes
+            $val = $val -replace "'\\''", "'"
+            if ($val.Length -ge 2) {
+                $val = $val.Substring(1, $val.Length - 2)
+            }
+        }
+        # Also handle double-quoted strings
+        elseif ($val.StartsWith('"') -and $val.EndsWith('"')) {
             $val = $val.Substring(1, $val.Length - 2)
         }
+
         $VM_PASSWORD = $val
     }
 }
@@ -29,6 +41,8 @@ Get-Content $EnvFile | ForEach-Object {
 if ([string]::IsNullOrEmpty($VM_PASSWORD)) {
     Write-Error "VM_PASSWORD not set in $EnvFile"
 }
+
+Write-Host "Password read from file: [length=$($VM_PASSWORD.Length)]" -ForegroundColor Gray
 
 $pfx86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
 $candidates = @(
@@ -42,20 +56,40 @@ if (-not $openssl) {
     Write-Error "OpenSSL not found under Git for Windows. Run install-virt-windows.ps1 first."
 }
 
-# Generate password hash using stdin (more reliable for special characters)
-# Create a temporary file to avoid PowerShell argument escaping issues
+# Generate password hash (same method as Linux: pass as argument)
+# OpenSSL from Git for Windows handles arguments the same as Unix
+Write-Host "Generating password hash..." -ForegroundColor Gray
+$HashOutput = (& $openssl passwd -6 $VM_PASSWORD 2>&1)
+
+# Filter to only the hash line (starts with $6$)
+$Hash = ($HashOutput | Where-Object { $_ -match '^\$6\$' } | Select-Object -First 1)
+if ([string]::IsNullOrWhiteSpace($Hash)) {
+    Write-Host "OpenSSL output:" -ForegroundColor Yellow
+    $HashOutput | ForEach-Object { Write-Host "  $_" }
+    Write-Error "openssl passwd failed to generate hash"
+}
+$Hash = $Hash.Trim()
+
+# Verify the hash works with the password
+Write-Host "Verifying password hash..." -ForegroundColor Gray
 $tempFile = [System.IO.Path]::GetTempFileName()
 try {
-    # Write password to temp file (UTF-8 no BOM, Unix line endings)
+    # Save hash to temp file for verification
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($tempFile, $VM_PASSWORD, $utf8NoBom)
+    [System.IO.File]::WriteAllText($tempFile, $Hash, $utf8NoBom)
 
-    # Pass to openssl via stdin redirect
-    $Hash = (Get-Content $tempFile -Raw | & $openssl passwd -6 -stdin 2>&1 | Where-Object { $_ -match '^\$6\$' })
-    if ([string]::IsNullOrWhiteSpace($Hash)) {
-        Write-Error "openssl passwd failed to generate hash"
+    # Test if password matches hash (openssl exits 0 if match)
+    $verifyOutput = (echo $VM_PASSWORD | & $openssl passwd -6 -salt (($Hash -split '\$')[2]) 2>&1)
+    if ($verifyOutput -match '^\$6\$') {
+        $generatedHash = ($verifyOutput | Where-Object { $_ -match '^\$6\$' } | Select-Object -First 1).Trim()
+        if ($generatedHash -eq $Hash) {
+            Write-Host "✓ Password hash verified successfully" -ForegroundColor Green
+        } else {
+            Write-Warning "Password hash verification failed - hash mismatch"
+        }
     }
-    $Hash = $Hash.Trim()
+} catch {
+    Write-Warning "Could not verify hash: $_"
 } finally {
     Remove-Item $tempFile -ErrorAction SilentlyContinue
 }
