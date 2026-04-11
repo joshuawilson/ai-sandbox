@@ -129,4 +129,4 @@ Write-Host "Guest UID: $OwnerUid" -ForegroundColor Gray
 Write-Host "Windows host IP: $WindowsIP (VM will download files via HTTP)" -ForegroundColor Green
 Write-Host ""
 Write-Host "IMPORTANT: Keep HTTP server running during installation:"
-Write-Host "  .\tools\serve-kickstart.ps1"
+Write-Host '  .\tools\serve-kickstart.ps1'
