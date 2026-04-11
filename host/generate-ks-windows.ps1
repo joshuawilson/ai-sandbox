@@ -42,11 +42,8 @@ if (-not $openssl) {
     Write-Error "OpenSSL not found under Git for Windows. Run install-virt-windows.ps1 first."
 }
 
-# openssl passwd -6 prints "Password:" to stderr (cosmetic prompt); suppress NativeCommandError
-$prevEAP = $ErrorActionPreference
-$ErrorActionPreference = "SilentlyContinue"
-$Hash = ($VM_PASSWORD | & $openssl passwd -6)
-$ErrorActionPreference = $prevEAP
+# openssl passwd -6 prints "Password:" to stderr (cosmetic prompt); redirect stderr to null
+$Hash = ($VM_PASSWORD | & $openssl passwd -6 2>$null)
 if ([string]::IsNullOrWhiteSpace($Hash)) {
     Write-Error "openssl passwd failed"
 }
