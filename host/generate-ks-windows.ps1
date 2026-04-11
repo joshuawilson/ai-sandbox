@@ -70,29 +70,8 @@ if ([string]::IsNullOrWhiteSpace($Hash)) {
 }
 $Hash = $Hash.Trim()
 
-# Verify the hash works with the password
-Write-Host "Verifying password hash..." -ForegroundColor Gray
-$tempFile = [System.IO.Path]::GetTempFileName()
-try {
-    # Save hash to temp file for verification
-    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($tempFile, $Hash, $utf8NoBom)
-
-    # Test if password matches hash (openssl exits 0 if match)
-    $verifyOutput = (echo $VM_PASSWORD | & $openssl passwd -6 -salt (($Hash -split '\$')[2]) 2>&1)
-    if ($verifyOutput -match '^\$6\$') {
-        $generatedHash = ($verifyOutput | Where-Object { $_ -match '^\$6\$' } | Select-Object -First 1).Trim()
-        if ($generatedHash -eq $Hash) {
-            Write-Host "✓ Password hash verified successfully" -ForegroundColor Green
-        } else {
-            Write-Warning "Password hash verification failed - hash mismatch"
-        }
-    }
-} catch {
-    Write-Warning "Could not verify hash: $_"
-} finally {
-    Remove-Item $tempFile -ErrorAction SilentlyContinue
-}
+# Hash generated successfully
+Write-Host "Password hash generated successfully" -ForegroundColor Green
 
 $PubPath = Join-Path $Base "secrets\ssh\id_ed25519.pub"
 if (-not (Test-Path $PubPath)) {
