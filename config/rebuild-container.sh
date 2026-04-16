@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-IMAGE_NAME="ai-dev"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Removing old container images..."
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/container.env"
 
-podman rmi "$IMAGE_NAME" || true
+echo "Removing old container image: $CONTAINER_IMAGE"
+
+podman rmi "$CONTAINER_IMAGE" || true
 
 echo "Rebuilding..."
 
-~/ai-sandbox/config/build-container.sh
+bash "$SCRIPT_DIR/build-container.sh"

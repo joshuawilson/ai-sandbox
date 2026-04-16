@@ -65,4 +65,4 @@
 
 - **`config/ai-kill-switch.sh`** — Optional crude network spike detector; **`INTERFACE`**, **`THRESHOLD_MB`** env vars.
 - **`config/ai-recorder.sh`** — Logging experiment.
-- **New project directory:** **`mkdir -p ~/ai-sandbox/workspace/<name>`** on the guest (host-backed), or use **`config/start-container.sh`** / **`config/create-project.sh`**, which create **`$WORKSPACE_ROOT/<name>`** if needed.
+- **New project directory:** **`mkdir -p ~/ai-sandbox/workspace/<name>`** on the guest (host-backed), or use **`config/start-container.sh --detach <name>`**, which creates **`$WORKSPACE_ROOT/<name>`** if needed.

@@ -82,33 +82,6 @@ else
   RUN_FLAGS+=(-it)
 fi
 
-PODMAN_VERTEX_EXTRA=()
-[[ -n "${PODMAN_VERTEX_ENV_FILE:-}" ]] && PODMAN_VERTEX_EXTRA+=(--env-file "$PODMAN_VERTEX_ENV_FILE")
-PODMAN_VERTEX_EXTRA+=("${PODMAN_VERTEX_VOLS[@]}")
-
-podman run \
-"${RUN_FLAGS[@]}" \
---name "$CTR" \
---cap-drop=ALL \
---security-opt=no-new-privileges \
-"${PODMAN_SEC_EXTRA[@]}" \
---userns=keep-id \
---user "$(id -u):$(id -g)" \
--e HOME=/home/dev \
--e DISABLE_AUTOUPDATER=1 \
--w /workspace \
---read-only \
---tmpfs /run \
---tmpfs /tmp \
-"${VOL_DEVHOME[@]}" \
---pids-limit="$PID_LIMIT" \
---memory="$MEMORY_LIMIT" \
---cpus="$CPU_LIMIT" \
---network slirp4netns \
-"${VOL_MIRROR[@]}" \
-"${VOL_WORKSPACE[@]}" \
-"${VOL_SSH[@]}" \
-"${PODMAN_VERTEX_EXTRA[@]}" \
-$CONTAINER_IMAGE
-
-[[ -n "${PODMAN_VERTEX_ENV_FILE:-}" ]] && rm -f "$PODMAN_VERTEX_ENV_FILE"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/podman-run-common.sh"
+ai_sandbox_run_dev_container "$NAME" "$CONTAINER_IMAGE" "${RUN_FLAGS[@]}"

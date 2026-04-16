@@ -7,7 +7,7 @@ For a **conceptual map** of host → VM → Podman, **`workspace/<name>/`**, and
 | Situation | What to do |
 |-----------|------------|
 | **New host or first VM** | See **[use-cases.md](use-cases.md)** §1. On the **host**: **`./setup-host.sh`** or **`.\setup-host.ps1`** (optional **`host/configure-vm-host.*`** for **`vm-host.env`** + **`secrets/vm-password.env`**), then **`host/create-vm-*`** per [bootstrap.md](bootstrap.md). In the **guest**: first-boot runs **`install-inside-vm.sh`**; if mounts failed, run **`sudo ~/ai-sandbox/config/ensure-sandbox-mounts.sh ai`** then **`~/ai-sandbox/config/install-inside-vm.sh`**. |
-| **Typical day** | See **[use-cases.md](use-cases.md)** §2. **Host:** **`./start-vm.sh`** or **`.\start-vm.ps1`**. **Guest:** **`~/ai-sandbox/config/start-day.sh`** (same as **`start-dev.sh`**) or **`start-container.sh <name>`**. Optionally **`git pull`** the host repo copy so **`config/`** updates in the guest. |
+| **Typical day** | See **[use-cases.md](use-cases.md)** §2. **Host:** **`./start-vm.sh`** or **`.\start-vm.ps1`**. **Guest:** **`~/ai-sandbox/config/start-dev.sh`** or **`start-container.sh <name>`**. Shell into running container: **`shell-into-container.sh <name>`**. Optionally **`git pull`** the host repo copy so **`config/`** updates in the guest. |
 | **New guest disk (VM reset)** | Run **`~/ai-sandbox/config/install-inside-vm.sh`** again. **Host** **`secrets/`** and **`workspace/`** (including each **`workspace/<name>/`**) are unchanged if the host tree is intact. |
 | **Reproducible environment** | Guest OS comes from the same **kickstart** + **`install-inside-vm.sh`**; pin tool URLs in [operations.md](operations.md). **Project code** is reproducible via normal **Git** in **`workspace/<name>/`** trees (and your remotes). |
 
@@ -123,10 +123,10 @@ Runs as user **`ai`** (with passwordless sudo from kickstart). Typical actions:
 
 | Action | Command |
 |--------|---------|
-| Interactive shell, project **`<name>`** | `~/ai-sandbox/config/start-container.sh <name>` (or **`first-project-name.sh`** for the lexicographically first non-hidden folder under **`workspace/`**, or **`default`** if empty) |
-| Detached container | `~/ai-sandbox/config/start-container.sh --detach <name>` |
-| Convenience wrapper | `~/ai-sandbox/config/create-project.sh <name>` |
-| Stop | `~/ai-sandbox/config/stop-container.sh <name>` |
+| Start container (interactive) | `~/ai-sandbox/config/start-container.sh <name>` (or **`first-project-name.sh`** for the lexicographically first non-hidden folder under **`workspace/`**, or **`default`** if empty) |
+| Start container (detached) | `~/ai-sandbox/config/start-container.sh --detach <name>` |
+| Shell into running container | `~/ai-sandbox/config/shell-into-container.sh <name>` |
+| Stop container | `~/ai-sandbox/config/stop-container.sh <name>` |
 
 **`start-container.sh`** refuses to create a duplicate name if a container **`ai-dev-<name>`** already exists (`podman inspect`); remove with **`podman rm -f ai-dev-<name>`** or **`stop-container.sh`** first.
 
@@ -142,7 +142,7 @@ Hardening flags include **`--cap-drop=ALL`**, **`--security-opt=no-new-privilege
 
 - **`config/first-project-name.sh`** — Prints the **lexicographically first** directory name under **`~/ai-sandbox/workspace/`** (skipping hidden names); if **`workspace/`** is missing or has no suitable subdirectories, prints **`default`**.
 - **`config/start-dev.sh`** — Ensures **`~/ai-sandbox/workspace/<name>/`** exists for that name, starts a **detached** container for **`first-project-name.sh`**, and launches **Cursor** on that workspace.
-- **`config/start-day.sh`** — Same as **`start-dev.sh`** (alias for “returning to work”; see [use-cases.md](use-cases.md)).
+- **`config/shell-into-container.sh <name>`** — Opens an interactive bash shell in the running **`ai-dev-<name>`** container.
 
 ---
 

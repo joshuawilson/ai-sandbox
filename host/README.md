@@ -4,7 +4,7 @@ Run these on **Fedora**, **macOS**, or **Windows** before or while managing the 
 
 **New users (first-time):** **`./setup-host.sh`** or **`.\setup-host.ps1`** at repo root — after host checks, you can run the **VM wizard** (**`host/configure-vm-host.sh`** / **`.ps1`**) for disk/RAM/CPUs and an **auto-generated** **`secrets/vm-password.env`**. Then use the scripts below. **`start-vm`** only boots an existing VM; it does not run that wizard.
 
-**Returning users:** **`./start-vm.sh`** or **`.\start-vm.ps1`** to boot the VM; **`./stop-vm.sh`** or **`.\stop-vm.ps1`** to force-stop it (**`--remove`** / **`-Remove`** removes the VM + disk for a clean reinstall). In the guest run **`~/ai-sandbox/config/start-day.sh`**. See **[spec/how/use-cases.md](../spec/how/use-cases.md)**.
+**Returning users:** **`./start-vm.sh`** or **`.\start-vm.ps1`** to boot the VM; **`./stop-vm.sh`** or **`.\stop-vm.ps1`** to force-stop it (**`--remove`** / **`-Remove`** removes the VM + disk for a clean reinstall). In the guest run **`~/ai-sandbox/config/start-dev.sh`**. See **[spec/how/use-cases.md](../spec/how/use-cases.md)**.
 
 **Do not rename** **`../config/`**, **`../secrets/`**, or **`../workspace/`** — the Linux VM attaches them by path (virtiofs).
 

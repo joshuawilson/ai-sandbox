@@ -130,17 +130,19 @@ ai-sandbox/
 | **`sync-claude-vertex-env.sh`** | Guest: copies host-backed **`claude-vertex.env`** into **`~/.config/ai-sandbox/`** (wrapper around **`ai_sandbox_sync_claude_vertex_env_from_sandbox`**). Run: **`bash ~/ai-sandbox/config/sync-claude-vertex-env.sh`**. |
 | **`ensure-claude-settings.sh`** | Guest: if **`~/.claude/settings.json`** is missing or empty, copy **`config/claude-code.settings.json`** (**`bypassPermissions`**). **`--force`** overwrites. **`bash ~/ai-sandbox/config/ensure-claude-settings.sh`**. |
 | **`lib/podman-claude-devhome.sh`** | **`start-container.sh`**: copy guest **`~/.claude/settings.json`**, **`~/.claude.json`**, **`~/.claude/skills/`** into **`container-home/<name>/`** for Podman **`/home/dev`**. |
+| **`lib/podman-workspace-volumes.sh`** | Sets up volume mount arrays for podman; handles virtiofs vs SELinux labeling. Sourced by **`start-container.sh`** and **`restore-project.sh`**. |
+| **`lib/podman-vertex-container-opts.sh`** | Prepares Vertex AI + gcloud environment and volumes for containers. Sets **`PODMAN_VERTEX_ENV_FILE`** and **`PODMAN_VERTEX_VOLS`**. |
+| **`lib/podman-run-common.sh`** | Shared function **`ai_sandbox_run_dev_container`** — eliminates duplicated `podman run` logic between **`start-container.sh`** and **`restore-project.sh`**. |
 | **`merge-claude-bootstrap.sh`** | Merge MCP JSON from **`config/claude-bootstrap/mcp.json`**, **`workspace/.ai-sandbox-private/claude-bootstrap/mcp.json`**, **`secrets/claude-mcp.json`**; copy skills from **`config/claude-bootstrap/skills/`** and workspace-private skills. |
 | **`Containerfile`** | `ai-dev` image: dev user, toolchains, hardened defaults. |
 | **`container.env`** | Image name, CPU/memory/pid limits, `WORKSPACE_ROOT`, `SECRETS_DIR`. |
 | **`build-container.sh`** | `podman build` → `ai-dev`. |
-| **`start-container.sh`** | Run `ai-dev-<name>` with hardened flags; bind project + SSH RO. |
+| **`start-container.sh`** | Run `ai-dev-<name>` with hardened flags; bind project + SSH RO. Use **`--detach`** for background mode. |
 | **`stop-container.sh`** | Stop/remove project container. |
-| **`create-project.sh`** | Create project dir + start detached container. |
+| **`shell-into-container.sh`** | Open interactive shell in running `ai-dev-<name>` container. |
 | **`start-dev.sh`** | First project + detached container + Cursor. |
-| **`start-day.sh`** | Same as `start-dev.sh` (alias workflow). |
 | **`first-project-name.sh`** | Lexicographic first non-hidden dir under `~/ai-sandbox/workspace/` or `default`. |
-| **`rebuild-container.sh`** | Rebuild image. |
+| **`rebuild-container.sh`** | Rebuild image using `container.env`. |
 | **`reset-project.sh`** | Reset project container state. |
 | **`snapshot-project.sh`** | `podman commit` snapshot image. |
 | **`restore-project.sh`** | Run container from snapshot. |

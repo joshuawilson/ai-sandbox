@@ -83,15 +83,14 @@ Each project is a folder **`~/ai-sandbox/workspace/<name>/`** (same as **`worksp
 Start the **default** project’s container (detached) and open **Cursor** on that folder:
 
 ```bash
-bash ~/ai-sandbox/config/start-day.sh
+bash ~/ai-sandbox/config/start-dev.sh
 ```
 
-(`start-dev.sh` is the same.)
+- **Shell inside a running container:** `bash ~/ai-sandbox/config/shell-into-container.sh <name>` — opens an interactive bash shell in the running **`ai-dev-<name>`** container.
+- **Start a new project container:** `bash ~/ai-sandbox/config/start-container.sh --detach <name>` — creates and starts a project container in detached mode.
+- **Interactive container session:** `bash ~/ai-sandbox/config/start-container.sh <name>` — starts container with interactive terminal (no **`--detach`**).
 
-- **Shell inside the container:** `bash ~/ai-sandbox/config/start-container.sh <name>` — same tree as **`/workspace`** and as **`~/ai-sandbox/workspace/<name>`** (**`HOME`** is **`/home/dev`**; that path is bind-mounted for you).
-- **Another project:** `bash ~/ai-sandbox/config/create-project.sh <name>` or `start-container.sh <name>`
-
-`podman run -d` prints a long container ID when **`start-day.sh`** succeeds—that is normal. Check with **`podman ps`** (**`ai-dev-<name>`**).
+`podman run -d` prints a long container ID when **`start-dev.sh`** succeeds—that is normal. Check with **`podman ps`** (**`ai-dev-<name>`**).
 
 ---
 
@@ -331,7 +330,7 @@ See [spec/how/runtime.md](spec/how/runtime.md) for credential format details.
 Inside the Fedora VM:
 
 ```bash
-bash ~/ai-sandbox/config/start-day.sh
+bash ~/ai-sandbox/config/start-dev.sh
 ```
 
 This:
@@ -349,7 +348,7 @@ This:
 
 Inside the VM, run:
 ```bash
-bash ~/ai-sandbox/config/start-day.sh
+bash ~/ai-sandbox/config/start-dev.sh
 ```
 
 ### Troubleshooting Windows Issues
@@ -436,7 +435,7 @@ If you already installed Fedora but it won't boot, the ISO should remain as the 
 | Where | Linux/macOS | Windows |
 |-------|------------|---------|
 | Host — Start VM | `./start-vm.sh` | `.\start-vm.ps1` |
-| Guest — Start project | `bash ~/ai-sandbox/config/start-day.sh` | Same |
+| Guest — Start project | `bash ~/ai-sandbox/config/start-dev.sh` | Same |
 | Host — Stop VM | `./stop-vm.sh` | `.\stop-vm.ps1` |
 | Host — Delete VM | `./stop-vm.sh --remove` | `.\stop-vm.ps1 -Remove` |
 

@@ -95,7 +95,7 @@ Inside the VM (in Terminator):
 
 ```bash
 # Start your first project
-bash ~/ai-sandbox/config/start-day.sh
+bash ~/ai-sandbox/config/start-dev.sh
 
 # This creates workspace/default and opens Cursor
 ```
@@ -114,7 +114,7 @@ bash ~/ai-sandbox/config/start-day.sh
 
 **In the VM** after login:
 ```bash
-bash ~/ai-sandbox/config/start-day.sh
+bash ~/ai-sandbox/config/start-dev.sh
 ```
 
 ## Troubleshooting

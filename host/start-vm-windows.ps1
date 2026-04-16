@@ -20,4 +20,4 @@ try {
     exit 1
 }
 
-Write-Host "Log in to the guest, then: ~/ai-sandbox/config/start-day.sh"
+Write-Host "Log in to the guest, then: ~/ai-sandbox/config/start-dev.sh"
