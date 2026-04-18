@@ -50,6 +50,26 @@ else
       install -m 644 "$SANDBOX_PUB" "$HOME/.ssh/id_ed25519.pub"
     fi
     echo "Copied sandbox SSH keys to ~/.ssh (for Podman bind-mount)."
+
+    # SSH config: tell SSH to use the key for GitHub
+    if [[ ! -f "$HOME/.ssh/config" ]] || ! grep -q 'Host github.com' "$HOME/.ssh/config" 2>/dev/null; then
+      cat >> "$HOME/.ssh/config" <<'SSHCFG'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+SSHCFG
+      chmod 600 "$HOME/.ssh/config"
+    fi
+
+    # Add GitHub host keys to known_hosts (avoids interactive prompt)
+    if [[ ! -f "$HOME/.ssh/known_hosts" ]] || ! grep -q 'github.com' "$HOME/.ssh/known_hosts" 2>/dev/null; then
+      ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
+    fi
+
+    # Rewrite HTTPS GitHub URLs to SSH so git clone/push uses the key
+    git config --global url."git@github.com:".insteadOf "https://github.com/"
   elif [[ -e "$SANDBOX_KEY" ]]; then
     echo "Sandbox SSH private key exists but is not readable: $SANDBOX_KEY" >&2
     echo "On the host: chown/chmod secrets/ssh so guest user ai (UID usually 1000) can read the key." >&2
