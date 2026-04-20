@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify a macOS host is ready for create-vm-mac.sh (UTM + qemu tools from Homebrew).
+# Verify a macOS host is ready for create-vm-mac.sh (Tart + tools from Homebrew).
 # Run from Terminal. Does not modify the system.
 set -u
 
@@ -31,15 +31,6 @@ else
   ok "Kernel: Darwin"
 fi
 
-# --- Apple Silicon vs x86_64 ISO (manual choice of image) ---
-arch=$(uname -m)
-if [[ "$arch" == "arm64" ]]; then
-  warn "Apple Silicon ($arch): default scripts use x86_64 Fedora ISO — use an aarch64 image in UTM for native speed, or expect emulation."
-  warnings=$((warnings + 1))
-else
-  ok "Machine arch: $arch (matches typical x86_64 ISO URLs in scripts)"
-fi
-
 # --- Homebrew ---
 if command -v brew >/dev/null 2>&1; then
   ok "Homebrew: $(command -v brew)"
@@ -58,10 +49,11 @@ for cmd in git curl jq; do
   fi
 done
 
-if command -v qemu-img >/dev/null 2>&1; then
-  ok "command: qemu-img (qemu)"
+# --- Tart (Apple Virtualization.framework CLI) ---
+if command -v tart >/dev/null 2>&1; then
+  ok "command: tart ($(tart --version 2>/dev/null || echo 'version unknown'))"
 else
-  miss "qemu-img — brew install qemu"
+  miss "command: tart — brew install tart (or run install-virt-mac.sh)"
   issues=$((issues + 1))
 fi
 
@@ -71,14 +63,6 @@ if command -v python3 >/dev/null 2>&1; then
 else
   warn "python3 not found — install Xcode CLT or python.org; needed to serve ks.cfg over HTTP"
   warnings=$((warnings + 1))
-fi
-
-# --- UTM (manual install from website / App Store) ---
-if [[ -d "/Applications/UTM.app" ]]; then
-  ok "UTM.app found in /Applications"
-else
-  miss "UTM.app — install from https://mac.getutm.app/ (cannot be scripted here)"
-  issues=$((issues + 1))
 fi
 
 # --- Repo layout ---
@@ -103,10 +87,6 @@ else
   warnings=$((warnings + 1))
 fi
 
-echo ""
-echo -e "${BOLD}Manual steps (not scripted):${NC}"
-echo "  • Grant UTM **Full Disk Access** or relevant privacy permissions if macOS blocks VM disk access (System Settings → Privacy)."
-echo "  • Choose **Fedora aarch64** media on Apple Silicon if you do not want x86 emulation."
 echo ""
 echo -e "${BOLD}Summary:${NC}  issues=$issues  warnings=$warnings"
 if [[ "$issues" -gt 0 ]]; then
