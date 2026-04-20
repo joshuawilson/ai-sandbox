@@ -12,17 +12,18 @@ vm_host_apply_defaults_mac
 
 echo "=== AI SANDBOX REBUILD (MAC) ==="
 
-echo "[1/4] Generating Kickstart..."
+if ! command -v tart >/dev/null 2>&1; then
+  echo "tart not found — brew install tart" >&2
+  exit 1
+fi
+
+echo "[1/3] Removing existing VM..."
+tart stop "$VM_NAME" 2>/dev/null || true
+tart delete "$VM_NAME" 2>/dev/null || true
+rm -f "$BASE/vm/fedora.iso"
+
+echo "[2/3] Generating Kickstart..."
 "$BASE/host/generate-ks-mac.sh"
 
-echo "[2/4] Removing old VM disk..."
-rm -f "$BASE/vm/${VM_NAME}.qcow2"
-
-echo "[3/4] Recreating disk + ISO..."
+echo "[3/3] Creating new VM..."
 "$BASE/host/create-vm-mac.sh"
-
-echo ""
-echo "======================================"
-echo "Manual step required:"
-echo "Open UTM and reinstall VM using new disk"
-echo "======================================"
