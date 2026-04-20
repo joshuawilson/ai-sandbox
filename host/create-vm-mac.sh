@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-# x86_64 ISO by default. On Apple Silicon, use a Fedora aarch64 image and set VM_ISO_URL in host/vm-host.env.
 
 _HS_HOST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/sandbox-root.sh
@@ -13,14 +12,12 @@ vm_host_apply_defaults_mac
 
 VM_DIR="$BASE/vm"
 ISO="$VM_DIR/fedora.iso"
-DISK="$VM_DIR/$VM_NAME.qcow2"
-
-ISO_URL="$VM_ISO_URL"
 
 mkdir -p "$VM_DIR"
 
-echo "== AI Sandbox VM Setup (Mac) =="
+echo "== AI Sandbox VM Setup (Mac / Tart) =="
 
+# --- Kickstart ---
 if [[ -f "$BASE/secrets/vm-password.env" && -f "$BASE/secrets/ssh/id_ed25519.pub" ]]; then
   echo "Generating ks.cfg..."
   "$BASE/host/generate-ks-mac.sh" || true
@@ -28,53 +25,76 @@ else
   echo "Skipping generate-ks-mac.sh — add secrets/vm-password.env and secrets/ssh first."
 fi
 
-# Download ISO
+# --- Download ISO ---
 if [[ ! -f "$ISO" ]]; then
-  echo "Downloading Fedora ISO..."
-  curl -L "$ISO_URL" -o "$ISO"
+  echo "Downloading Fedora aarch64 netinstall ISO..."
+  curl -L "$VM_ISO_URL" -o "$ISO"
 else
-  echo "ISO already exists."
+  echo "ISO already exists: $ISO"
 fi
 
-# Create disk
-if [[ ! -f "$DISK" ]]; then
-  echo "Creating VM disk..."
-  qemu-img create -f qcow2 "$DISK" "${VM_DISK_GB}G"
-else
-  echo "Disk already exists."
+# --- Create Tart VM ---
+if tart list 2>/dev/null | grep -q "$VM_NAME"; then
+  echo "Tart VM '$VM_NAME' already exists. Delete first with: tart delete $VM_NAME"
+  exit 1
 fi
 
+echo "Creating Tart VM: $VM_NAME (disk ${VM_DISK_GB}G, ${VM_VCPUS} CPUs, ${VM_MEMORY_MIB} MiB RAM)..."
+tart create "$VM_NAME" --linux --disk-size "$VM_DISK_GB"
+tart set "$VM_NAME" --cpu "$VM_VCPUS" --memory "$VM_MEMORY_MIB"
+
+# --- Start HTTP kickstart server ---
+KS_PID=""
+cleanup() {
+  if [[ -n "$KS_PID" ]] && kill -0 "$KS_PID" 2>/dev/null; then
+    echo "Stopping kickstart server (PID $KS_PID)..."
+    kill "$KS_PID" 2>/dev/null || true
+    wait "$KS_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+if [[ -f "$BASE/ks.cfg" ]]; then
+  echo "Starting kickstart HTTP server on port 8000..."
+  cd "$BASE" && python3 -m http.server 8000 --bind 0.0.0.0 &
+  KS_PID=$!
+  cd "$BASE"
+  sleep 1
+
+  HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || echo '<your-ip>')
+  echo ""
+  echo "======================================"
+  echo "KICKSTART INSTRUCTIONS"
+  echo "======================================"
+  echo ""
+  echo "At the Fedora installer boot screen, press Tab (BIOS) or 'e' (EFI)"
+  echo "to edit boot options. Append:"
+  echo ""
+  echo "  inst.ks=http://${HOST_IP}:8000/ks.cfg"
+  echo ""
+  echo "(If en0 is not your active interface, use your LAN IP instead.)"
+  echo "======================================"
+  echo ""
+else
+  echo "No ks.cfg found — skipping HTTP kickstart server."
+  echo "Install Fedora manually, then run config/install-inside-vm.sh in the guest."
+fi
+
+# --- Boot VM with ISO + virtiofs ---
+echo "Booting VM from ISO with virtiofs shares..."
+echo "(Close the VM window or shut down the guest to return to this terminal.)"
 echo ""
-echo "======================================"
-echo "UTM — manual steps"
-echo "======================================"
+tart run "$VM_NAME" \
+  --disk "$ISO" \
+  --directory host-config:"$BASE/config":ro \
+  --directory host-secrets:"$BASE/secrets":ro \
+  --directory host-workspace:"$BASE/workspace"
+
 echo ""
-echo "1. Open UTM → New → Virtualize → Linux"
-echo "2. Boot ISO: $ISO"
-echo "3. Disk: import existing → $DISK"
+echo "VM session ended."
+echo "If Fedora installed successfully, start the VM for first-boot provisioning:"
+echo "  ./start-vm.sh"
 echo ""
-echo "Recommended in UTM: RAM ≈ ${VM_MEMORY_MIB} MiB, ${VM_VCPUS} CPUs (from host/vm-host.env), NAT, VirtIO GPU."
-echo ""
-echo "=== Kickstart (optional unattended install) ==="
-echo "On this Mac, from $BASE run:"
-echo "  ./tools/serve-kickstart.sh"
-echo "At the Fedora installer boot screen, edit options and add:"
-echo "  inst.ks=http://\$(ipconfig getifaddr en0):8000/ks.cfg"
-echo "(Use your LAN IP if different; allow firewall for TCP 8000.)"
-echo ""
-echo "=== Shared folder (after install) ==="
-echo "In UTM: VM Settings → Shared Directory — add your host folder:"
-echo "  $BASE"
-echo "Then in the guest mount it (virtio-9p path depends on UTM) or use rsync/scp to sync config/."
-echo "Alternatively use SMB from a Windows/Linux host per spec/how/bootstrap.md."
-echo ""
-echo "=== If install finishes without kickstart ==="
-echo "Copy this repo into the guest or mount the share, then:"
-echo "  sudo ~/ai-sandbox/config/ensure-sandbox-mounts.sh ai   # or configure CIFS first — config/cifs.env.example"
-echo "  ~/ai-sandbox/config/install-inside-vm.sh"
-echo ""
-echo "=== If you used HTTP kickstart but UTM has no virtiofs tags ==="
-echo "ai-sandbox-firstboot.service will fail until the guest can see host config/."
-echo "Set up SMB (Windows host -CreateSmbShare, or macOS file sharing) and CIFS per config/cifs.env.example,"
-echo "then: sudo ~/ai-sandbox/config/ensure-sandbox-mounts.sh ai && ~/ai-sandbox/config/install-inside-vm.sh"
-echo "======================================"
+echo "On first boot: ai-sandbox-virtiofs-mounts.service (~/ai-sandbox symlinks),"
+echo "then ai-sandbox-firstboot.service (install-inside-vm after network)."
+echo "Username: ai"
