@@ -439,6 +439,8 @@ If you already installed Fedora but it won't boot, the ISO should remain as the 
 | Host — Stop VM | `./stop-vm.sh` | `.\stop-vm.ps1` |
 | Host — Delete VM | `./stop-vm.sh --remove` | `.\stop-vm.ps1 -Remove` |
 
+**For VM management** (snapshots, save/restore state, pause): See **[VM-USAGE.md](VM-USAGE.md)**
+
 ---
 
 ## Where things live
