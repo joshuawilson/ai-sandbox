@@ -38,7 +38,7 @@ if ! command -v brew >/dev/null; then
   exit 1
 fi
 
-brew install qemu git curl jq
+brew install tart git curl jq
 
 echo "Generate sandbox SSH key..."
 
@@ -51,8 +51,5 @@ fi
 chmod -R 700 "$BASE/secrets"
 
 echo ""
-echo "Install UTM from:"
-echo "https://mac.getutm.app/"
-echo ""
-echo "Then run:  ./setup-host.sh --check-only"
-echo "(same as host/check-host-mac.sh)"
+echo "Host dependencies installed."
+echo "Next:  ./setup-host.sh --check-only"
