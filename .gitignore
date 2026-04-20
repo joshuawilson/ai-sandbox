@@ -26,6 +26,9 @@ tools/mkisofs/
 /.env
 /.env.local
 
+# Superpowers specs and plans (local only)
+docs/superpowers/
+
 # OS junk
 .DS_Store
 Thumbs.db
