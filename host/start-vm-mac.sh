@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
-# macOS: UTM has no stable one-shot CLI for "start this VM" in all setups — open UTM and start/resume manually.
 set -euo pipefail
 
-echo "Open UTM and start or resume your Fedora sandbox VM."
-echo "Then in the guest:  ~/ai-sandbox/config/start-dev.sh"
-if [[ -d "/Applications/UTM.app" ]]; then
-  open -a UTM 2>/dev/null || true
+_HS_HOST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sandbox-root.sh
+source "$_HS_HOST_DIR/lib/sandbox-root.sh"
+# shellcheck source=lib/vm-host-env.sh
+source "$_HS_HOST_DIR/lib/vm-host-env.sh"
+BASE="$(sandbox_repo_root)"
+vm_host_env_load "$BASE"
+vm_host_apply_defaults_mac
+
+if ! command -v tart >/dev/null 2>&1; then
+  echo "tart not found — brew install tart" >&2
+  exit 1
 fi
+
+if ! tart list 2>/dev/null | grep -q "$VM_NAME"; then
+  echo "No Tart VM named '$VM_NAME'. Run host/create-vm-mac.sh first." >&2
+  exit 1
+fi
+
+echo "Starting VM '$VM_NAME' with virtiofs shares..."
+echo "(Close the VM window or shut down the guest to return to this terminal.)"
+tart run "$VM_NAME" \
+  --directory host-config:"$BASE/config":ro \
+  --directory host-secrets:"$BASE/secrets":ro \
+  --directory host-workspace:"$BASE/workspace"
