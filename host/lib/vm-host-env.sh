@@ -29,12 +29,12 @@ vm_host_apply_defaults_linux() {
   LOCATION_URL="${LOCATION_URL:-https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_VER}/Everything/x86_64/os/}"
 }
 
-# Defaults for Mac (UTM) / shared with create-vm-mac.sh
+# Defaults for Mac (Tart / Apple Virtualization.framework)
 vm_host_apply_defaults_mac() {
   VM_NAME="${VM_NAME:-ai-sandbox}"
   VM_DISK_GB="${VM_DISK_GB:-80}"
   VM_MEMORY_MIB="${VM_MEMORY_MIB:-32768}"
   VM_VCPUS="${VM_VCPUS:-8}"
   FEDORA_VER="${FEDORA_VER:-43}"
-  VM_ISO_URL="${VM_ISO_URL:-https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_VER}/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-43-1.6.iso}"
+  VM_ISO_URL="${VM_ISO_URL:-https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_VER}/Server/aarch64/iso/Fedora-Server-netinst-aarch64-${FEDORA_VER}-1.6.iso}"
 }
