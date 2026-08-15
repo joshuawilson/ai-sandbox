@@ -328,9 +328,9 @@ fi
 echo "VM setup complete."
 
 #################################
-# Claude Code wizard: TTY = run now; no TTY (e.g. systemd first boot) = GNOME autostart terminal
+# Claude Code wizard: TTY = run now; no TTY (e.g. systemd first boot) = desktop autostart terminal
 #################################
-install_claude_wizard_gnome_autostart() {
+install_claude_wizard_desktop_autostart() {
   local desk="$HOME/.config/autostart/ai-sandbox-claude-setup.desktop"
   local sb
   sb="$(cd "$SANDBOX" && pwd)"
@@ -343,11 +343,9 @@ Version=1.0
 Type=Application
 Name=AI Sandbox Claude setup
 Comment=One-time interactive Claude Code setup (Red Hat Vertex or API key)
-Exec=/usr/bin/bash $sb/config/run-claude-setup-once.sh
+Exec=/usr/bin/bash -c "sleep 20; exec /usr/bin/bash $sb/config/run-claude-setup-once.sh"
 Terminal=false
 X-GNOME-Autostart-enabled=true
-X-GNOME-Autostart-Delay=20
-OnlyShowIn=GNOME;
 EOF
   chmod 644 "$desk"
 }
@@ -358,9 +356,9 @@ if [[ "${AI_SANDBOX_SKIP_CLAUDE_SETUP:-}" != "1" ]] && [[ -t 0 ]] && [[ -t 1 ]];
   AI_SANDBOX_SETUP_FROM_INSTALL=1 bash "$SCRIPT_DIR/setup-claude.sh" || true
 elif [[ "${AI_SANDBOX_SKIP_CLAUDE_SETUP:-}" != "1" ]]; then
   echo ""
-  install_claude_wizard_gnome_autostart
-  echo "First-boot install has no interactive terminal. A **GNOME autostart** entry was added: after you log in,"
-  echo "a terminal should open for **Claude setup** (~20s delay). If it does not (no DISPLAY / no gnome-terminal), run:"
+  install_claude_wizard_desktop_autostart
+  echo "First-boot install has no interactive terminal. A **desktop autostart** entry was added (GNOME or XFCE): after you log in,"
+  echo "a terminal should open for **Claude setup** (~20s delay). If it does not (no DISPLAY / no terminal emulator), run:"
   echo "  bash ~/ai-sandbox/config/setup-claude.sh"
   echo "To skip autostart, remove ~/.config/autostart/ai-sandbox-claude-setup.desktop or set AI_SANDBOX_SKIP_CLAUDE_SETUP=1 before re-running install."
 fi
