@@ -199,6 +199,47 @@ if ! sudo auditctl -l 2>/dev/null | grep -qF 'arch=b64 -S execve'; then
 fi
 
 #################################
+# Hyper-V Enhanced Session Mode (resizable GUI via xrdp + XFCE)
+#################################
+# Windows/Hyper-V guests only. Basic Session uses the fixed hyperv_fb framebuffer
+# (no dynamic resize). Enhanced Session tunnels RDP over vsock to xrdp, giving a
+# resizable window + clipboard. GNOME is Wayland-only on modern Fedora and SIGTRAPs
+# under xrdp's X11 display, so the remote session must use XFCE (native X11).
+# See docs/troubleshooting.md -> "Windows: Enhanced Session Mode".
+
+if [[ "$(systemd-detect-virt 2>/dev/null || true)" == "microsoft" ]]; then
+  echo "Hyper-V guest detected: configuring Enhanced Session Mode (xrdp + XFCE)..."
+  sudo dnf install -y xrdp xrdp-selinux xorgxrdp @xfce-desktop-environment
+
+  # xrdp listens on the Hyper-V vsock transport instead of TCP
+  sudo sed -i 's|^port=.*|port=vsock://-1:3389|' /etc/xrdp/xrdp.ini
+
+  # Allow the color-manager polkit actions so the session doesn't hang on auth pop-ups
+  sudo tee /etc/polkit-1/rules.d/02-allow-colord.rules >/dev/null <<'POLKIT'
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.color-manager.") === 0) {
+        return polkit.Result.YES;
+    }
+});
+POLKIT
+
+  sudo setsebool -P daemons_use_tty on 2>/dev/null || true
+  sudo systemctl enable --now xrdp xrdp-sesman
+
+  # CRITICAL: Fedora's Xsession only runs ~/.xsession when it is executable; otherwise
+  # it silently falls back to the (Wayland-only, broken-under-xrdp) GNOME default.
+  cat > "$HOME/.xsession" <<'XSESSION'
+#!/bin/bash
+exec startxfce4
+XSESSION
+  chmod +x "$HOME/.xsession"
+
+  echo "Enhanced Session ready. On the host (VM off): Set-VM -VMName <name> -EnhancedSessionTransportType HvSocket"
+else
+  echo "Not a Hyper-V guest; skipping Enhanced Session (xrdp/XFCE) setup."
+fi
+
+#################################
 # Build container (same as build-container.sh)
 #################################
 

@@ -114,6 +114,15 @@ $hdd = Get-VMHardDiskDrive -VMName $VMName
 Set-VMFirmware -VMName $VMName -BootOrder $dvd,$hdd
 Write-Host "Boot order configured: DVD (netinstall ISO) first"
 
+# Enhanced Session Mode over Hyper-V sockets (resizable GUI via guest xrdp + XFCE).
+# Guest side is configured by config/install-inside-vm.sh. See docs/troubleshooting.md.
+try {
+    Set-VM -VMName $VMName -EnhancedSessionTransportType HvSocket
+    Write-Host "Enhanced Session transport set to HvSocket"
+} catch {
+    Write-Warning "Could not set EnhancedSessionTransportType (older Hyper-V?): $_"
+}
+
 # Configure Windows Firewall for HTTP (port 8000)
 Write-Host "Configuring Windows Firewall for HTTP file server..."
 $fwRule = Get-NetFirewallRule -DisplayName "ai-sandbox-http" -ErrorAction SilentlyContinue

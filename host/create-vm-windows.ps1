@@ -86,6 +86,15 @@ Set-VMFirmware -VMName $VMName -BootOrder $dvd,$hdd
 
 Write-Host "Boot order configured: DVD (ISO) first, then VHD"
 
+# Enhanced Session Mode over Hyper-V sockets (resizable GUI via guest xrdp + XFCE).
+# Guest side is configured by config/install-inside-vm.sh. See docs/troubleshooting.md.
+try {
+    Set-VM -VMName $VMName -EnhancedSessionTransportType HvSocket
+    Write-Host "Enhanced Session transport set to HvSocket"
+} catch {
+    Write-Warning "Could not set EnhancedSessionTransportType (older Hyper-V?): $_"
+}
+
 # Create SMB share for guest to access config/secrets/workspace (required for automated setup)
 if (-not $SkipSmbShare) {
     try {
